@@ -1,0 +1,5 @@
+{
+  "note": "Answer key for fixtures/sharing/benign-lookalike. Lives OUTSIDE the fixture directory on purpose. The fixture is full of things that RESEMBLE secrets and machine paths — environment variable names, placeholder keys, a placeholder .env.example, $env: and process.env references, ${CLAUDE_PLUGIN_ROOT}, tilde paths — and every one of them is legitimate. Any hit or warning is a false positive and fails the gate.",
+  "scrub": [],
+  "portability": []
+}

@@ -1,0 +1,5 @@
+{
+  "note": "Answer key for fixtures/sharing/unscannable. A binary asset the scrubber cannot read: no hits to find, but the scan must come back 'incomplete' and block rather than claim clean — a gate that fails open on unreadable files is not a gate.",
+  "scrub": [],
+  "portability": []
+}

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "team-weather": {
+      "command": "node",
+      "args": ["scripts/weather-server.mjs"],
+      "env": {
+        "weather_api_key": "wxj-4421-team-weather-key"
+      }
+    }
+  }
+}

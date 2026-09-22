@@ -1,0 +1,16 @@
+{
+  "name": "claude-codex-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Selr kit: one portable core shared by Claude Code and Codex, with separate provider overlays, ownership receipts, previewed sync, conflict protection, atomic writes, interrupted-run recovery and independent provider removal. Zero dependencies.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"tests/*.test.mjs\"",
+    "check": "node --check scripts/bridge.mjs && node --check scripts/bridge-engine.mjs && node --check scripts/bridge-files.mjs && node --check scripts/bridge-skills.mjs && node --check scripts/bridge-memory.mjs && node --check scripts/bridge-adapters.mjs && node --check scripts/bridge-reconcile.mjs && node --check scripts/bridge-handoff.mjs && node --check scripts/bridge-native-import.mjs && node --check scripts/scrub.mjs && node --check scripts/portability.mjs && node --check scripts/fresh-session-check.mjs && node --check scripts/release-journey.mjs && node --check scripts/check-lineage.mjs",
+    "lineage": "node scripts/check-lineage.mjs",
+    "journey": "node scripts/release-journey.mjs"
+  }
+}
