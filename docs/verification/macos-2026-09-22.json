@@ -1,17 +1,17 @@
 {
   "schema": 1,
   "status": "passed",
-  "at": "2026-09-22T06:08:14.297Z",
+  "at": "2026-09-22T06:21:26.421Z",
   "host": "Harveys-MacBook-Pro.local",
   "os": "darwin 25.6.0",
-  "sourceRevision": "dec236f71403e30fc7efc6e39c5ebcecd8c00bbb",
+  "sourceRevision": "91d415d6cafc9ae9818fbc9c2f434a1e86ee28c9",
   "versions": {
     "node": "v25.9.0",
     "claude": "2.1.276 (Claude Code)",
     "codex": "codex-cli 0.155.0"
   },
   "fixture": {
-    "root": "/private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-8lQhEG",
+    "root": "/private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-OszJQ8",
     "note": "A clean fixture home under the temp folder; the real user home was not changed."
   },
   "steps": [
@@ -19,7 +19,7 @@
       "label": "inspect (Claude only)",
       "command": "node scripts/bridge.mjs inspect --provider claude --host cli",
       "exitStatus": 0,
-      "summary": ""
+      "summary": "Claude Code: 1 skills, 0 commands, 0 subagents, 0 MCP servers, 0 private stores left alone. No bridge installed yet. Nothing was changed."
     },
     {
       "label": "plan (Claude only)",
@@ -28,14 +28,14 @@
       "summary": [
         "Claude Code only found. 3 to share, 2 Claude-specific, 0 Codex-specific, 0 translated, 0 unsupported."
       ],
-      "planId": "eb06c2d04991f892",
+      "planId": "b1f61ec5a14f6bca",
       "noop": false
     },
     {
-      "label": "bridge Claude (apply eb06c2d04991f892)",
-      "command": "node scripts/bridge.mjs apply --plan eb06c2d04991f892",
+      "label": "bridge Claude (apply b1f61ec5a14f6bca)",
+      "command": "node scripts/bridge.mjs apply --plan b1f61ec5a14f6bca",
       "exitStatus": 0,
-      "summary": "Applied plan eb06c2d04991f892. Run verify to confirm both providers read the portable core.",
+      "summary": "Applied plan b1f61ec5a14f6bca. Run verify to confirm both providers read the portable core.",
       "noop": false
     },
     {
@@ -64,14 +64,14 @@
       "summary": [
         "Claude Code and Codex found. 3 to share (2 already shared), 2 Claude-specific, 2 Codex-specific, 1 translated, 0 unsupported."
       ],
-      "planId": "f2a381444bd79f99",
+      "planId": "b775c71e83144806",
       "noop": false
     },
     {
-      "label": "bridge Codex (apply f2a381444bd79f99)",
-      "command": "node scripts/bridge.mjs apply --plan f2a381444bd79f99",
+      "label": "bridge Codex (apply b775c71e83144806)",
+      "command": "node scripts/bridge.mjs apply --plan b775c71e83144806",
       "exitStatus": 0,
-      "summary": "Applied plan f2a381444bd79f99. 1 step remain for you; run verify afterwards.",
+      "summary": "Applied plan b775c71e83144806. 1 step remain for you; run verify afterwards.",
       "noop": false
     },
     {
@@ -107,7 +107,7 @@
         "Claude Code and Codex found. 0 to share (3 already shared), 2 Claude-specific, 2 Codex-specific, 0 translated, 0 unsupported.",
         "Nothing to change: your setup already matches the plan."
       ],
-      "planId": "06392ebc83ee21aa",
+      "planId": "654ed216931d3263",
       "noop": true
     },
     {
@@ -123,14 +123,14 @@
       "summary": [
         "Claude Code and Codex found. 1 to share (3 already shared), 2 Claude-specific, 2 Codex-specific, 0 translated, 0 unsupported."
       ],
-      "planId": "b6eeff89baf268b0",
+      "planId": "cfc78800b0fa1d73",
       "noop": false
     },
     {
-      "label": "sync (apply b6eeff89baf268b0)",
-      "command": "node scripts/bridge.mjs apply --plan b6eeff89baf268b0",
+      "label": "sync (apply cfc78800b0fa1d73)",
+      "command": "node scripts/bridge.mjs apply --plan cfc78800b0fa1d73",
       "exitStatus": 0,
-      "summary": "Applied plan b6eeff89baf268b0. Run verify to confirm both providers read the portable core.",
+      "summary": "Applied plan cfc78800b0fa1d73. Run verify to confirm both providers read the portable core.",
       "noop": false
     },
     {
@@ -148,7 +148,7 @@
         "1 item needs your choice before it is written; everything else can be applied now.",
         "Nothing to change: your setup already matches the plan."
       ],
-      "planId": "9b1dbe6ae97a6934",
+      "planId": "427a1065575f9c89",
       "noop": true
     },
     {
@@ -164,21 +164,21 @@
       "summary": [
         "Claude Code and Codex found. 1 to share (3 already shared), 2 Claude-specific, 2 Codex-specific, 0 translated, 0 unsupported."
       ],
-      "planId": "bad84a2eeb8c65b2",
+      "planId": "98b6b424ccc4ac98",
       "noop": false
     },
     {
-      "label": "resolve (apply bad84a2eeb8c65b2)",
-      "command": "node scripts/bridge.mjs apply --plan bad84a2eeb8c65b2",
+      "label": "resolve (apply 98b6b424ccc4ac98)",
+      "command": "node scripts/bridge.mjs apply --plan 98b6b424ccc4ac98",
       "exitStatus": 0,
-      "summary": "Applied plan bad84a2eeb8c65b2. Run verify to confirm both providers read the portable core.",
+      "summary": "Applied plan 98b6b424ccc4ac98. Run verify to confirm both providers read the portable core.",
       "noop": false
     },
     {
       "label": "candidates preserved",
       "check": true,
       "state": "confirmed",
-      "detail": "/private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-8lQhEG/home/.selr/bridge/conflicts/journey-notes/claude-2026-09-22T06-07-29-326Z, /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-8lQhEG/home/.selr/bridge/conflicts/journey-notes/core-2026-09-22T06-07-29-327Z"
+      "detail": "/private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-OszJQ8/home/.selr/bridge/conflicts/journey-notes/claude-2026-09-22T06-20-28-892Z, /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-OszJQ8/home/.selr/bridge/conflicts/journey-notes/core-2026-09-22T06-20-28-893Z"
     },
     {
       "label": "chosen version everywhere",
@@ -193,7 +193,7 @@
       "summary": [
         "Claude Code and Codex found. 1 to share (3 already shared), 2 Claude-specific, 2 Codex-specific, 0 translated, 0 unsupported."
       ],
-      "planId": "a5cd8a284fc3f9f5",
+      "planId": "4784f8cac116c732",
       "noop": false
     },
     {
@@ -234,21 +234,21 @@
       "summary": [
         "Claude Code and Codex found. 1 to share (3 already shared), 2 Claude-specific, 2 Codex-specific, 0 translated, 0 unsupported."
       ],
-      "planId": "a5cd8a284fc3f9f5",
+      "planId": "4784f8cac116c732",
       "noop": false
     },
     {
-      "label": "recover (apply a5cd8a284fc3f9f5)",
-      "command": "node scripts/bridge.mjs apply --plan a5cd8a284fc3f9f5",
+      "label": "recover (apply 4784f8cac116c732)",
+      "command": "node scripts/bridge.mjs apply --plan 4784f8cac116c732",
       "exitStatus": 0,
-      "summary": "An earlier operation did not finish; this run continued it from its saved progress. Applied plan a5cd8a284fc3f9f5. Run verify to confirm both providers read the portable core.",
+      "summary": "An earlier operation did not finish; this run continued it from its saved progress. Applied plan 4784f8cac116c732. Run verify to confirm both providers read the portable core.",
       "noop": false
     },
     {
       "label": "recovery reported",
       "check": true,
       "state": "confirmed",
-      "detail": "{\"actions\":[\"Removed the operation lock left by a bridge (plan a5cd8a284fc3f9f5) that stopped (process 1849, started 2026-09-22T06:07:29.473Z).\",\"Continued the bridge started 2026-09-22T06:07:29.474Z (plan a5cd8a284fc3f9f5) that did not finish.\",\"Recorded claude ownership of /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-8lQhEG/home/.claude/skills/journey-notes/SKILL.md, written by the stopped run.\"],\"adopted\":[\"/private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-8lQhEG/home/.claude/skills/journey-notes/SKILL.md\"],\"summary\":\"Recovery: an earlier operation stopped part-way and this run continued it from the progress saved in the receipt; 1 file the earlier run had already written was kept as the bridge's own rather than treated as customised; the lock left by the stopped run was removed. Nothing was installed twice and nothing you changed was overwritten.\"}"
+      "detail": "{\"actions\":[\"Removed the operation lock left by a bridge (plan 4784f8cac116c732) that stopped (process 52376, started 2026-09-22T06:20:29.043Z).\",\"Continued the bridge started 2026-09-22T06:20:29.045Z (plan 4784f8cac116c732) that did not finish.\",\"Recorded claude ownership of /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-OszJQ8/home/.claude/skills/journey-notes/SKILL.md, written by the stopped run.\"],\"adopted\":[\"/private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-OszJQ8/home/.claude/skills/journey-notes/SKILL.md\"],\"summary\":\"Recovery: an earlier operation stopped part-way and this run continued it from the progress saved in the receipt; 1 file the earlier run had already written was kept as the bridge's own rather than treated as customised; the lock left by the stopped run was removed. Nothing was installed twice and nothing you changed was overwritten.\"}"
     },
     {
       "label": "verify (recovered)",
@@ -277,15 +277,15 @@
     },
     {
       "label": "handoff create",
-      "command": "node scripts/bridge.mjs handoff create --input /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-8lQhEG/handoff.json --provider claude",
+      "command": "node scripts/bridge.mjs handoff create --input /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-OszJQ8/handoff.json --provider claude",
       "exitStatus": 0,
-      "summary": "Saved /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-8lQhEG/home/.selr/bridge/core/handoffs/probe.md. The other provider reads it as project context at the start of its next task."
+      "summary": "Saved /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-OszJQ8/home/.selr/bridge/core/handoffs/probe.md. The other provider reads it as project context at the start of its next task."
     },
     {
       "label": "handoff saved",
       "check": true,
       "state": "confirmed",
-      "detail": "Saved /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-8lQhEG/home/.selr/bridge/core/handoffs/probe.md. The other provider reads it as project context at the start of its next task."
+      "detail": "Saved /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-OszJQ8/home/.selr/bridge/core/handoffs/probe.md. The other provider reads it as project context at the start of its next task."
     },
     {
       "label": "fresh claude session",
@@ -326,14 +326,14 @@
       "summary": [
         "Remove codex from the bridge, keeping everything you changed."
       ],
-      "planId": "28c8d564cf4ea30c",
+      "planId": "99165b4925ea1001",
       "noop": false
     },
     {
-      "label": "remove Codex (apply 28c8d564cf4ea30c)",
-      "command": "node scripts/bridge.mjs apply --plan 28c8d564cf4ea30c",
+      "label": "remove Codex (apply 99165b4925ea1001)",
+      "command": "node scripts/bridge.mjs apply --plan 99165b4925ea1001",
       "exitStatus": 0,
-      "summary": "Applied plan 28c8d564cf4ea30c. Run verify to confirm both providers read the portable core.",
+      "summary": "Applied plan 99165b4925ea1001. Run verify to confirm both providers read the portable core.",
       "noop": false
     },
     {
@@ -368,14 +368,14 @@
       "summary": [
         "Claude Code and Codex found. 5 to share (3 already shared), 2 Claude-specific, 3 Codex-specific, 1 translated, 4 unsupported."
       ],
-      "planId": "dfb4d304eb0eaca3",
+      "planId": "081d01aa1436a639",
       "noop": false
     },
     {
-      "label": "re-add Codex (apply dfb4d304eb0eaca3)",
-      "command": "node scripts/bridge.mjs apply --plan dfb4d304eb0eaca3",
+      "label": "re-add Codex (apply 081d01aa1436a639)",
+      "command": "node scripts/bridge.mjs apply --plan 081d01aa1436a639",
       "exitStatus": 0,
-      "summary": "Applied plan dfb4d304eb0eaca3. 1 step remain for you; run verify afterwards.",
+      "summary": "Applied plan 081d01aa1436a639. 1 step remain for you; run verify afterwards.",
       "noop": false
     },
     {
@@ -400,12 +400,12 @@
         "Remove codex from the bridge, keeping everything you changed.",
         "Remove the bridge-owned files in the portable core that are unchanged. Your portable instructions, shared knowledge, handoffs and any customised file stay."
       ],
-      "planId": "9db330573afa234b",
+      "planId": "767ae910e27688de",
       "noop": false
     },
     {
-      "label": "uninstall (apply 9db330573afa234b)",
-      "command": "node scripts/bridge.mjs apply --plan 9db330573afa234b",
+      "label": "uninstall (apply 767ae910e27688de)",
+      "command": "node scripts/bridge.mjs apply --plan 767ae910e27688de",
       "exitStatus": 0,
       "summary": "The bridge is uninstalled. Your portable instructions, shared knowledge, handoffs and every customised file remain in place."
     },
@@ -430,7 +430,7 @@
   ],
   "freshSession": {
     "schema": 1,
-    "at": "2026-09-22T06:08:13.579Z",
+    "at": "2026-09-22T06:21:25.718Z",
     "os": "darwin 25.6.0",
     "versions": {
       "claude": "2.1.276 (Claude Code)",
@@ -442,10 +442,10 @@
       {
         "provider": "claude",
         "state": "confirmed",
-        "started": "2026-09-22T06:07:29.912Z",
-        "finished": "2026-09-22T06:07:44.263Z",
+        "started": "2026-09-22T06:20:29.495Z",
+        "finished": "2026-09-22T06:20:43.523Z",
         "command": "claude -p <prompt> --output-format text --allowedTools Bash(node:*) Read Glob",
-        "configDir": "/private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-8lQhEG/home/.claude",
+        "configDir": "/private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-OszJQ8/home/.claude",
         "exitStatus": 0,
         "observed": {
           "knowledge": true,
@@ -459,10 +459,10 @@
       {
         "provider": "codex",
         "state": "confirmed",
-        "started": "2026-09-22T06:07:44.263Z",
-        "finished": "2026-09-22T06:08:13.579Z",
+        "started": "2026-09-22T06:20:43.523Z",
+        "finished": "2026-09-22T06:21:25.718Z",
         "command": "codex exec --skip-git-repo-check -C <cwd> --output-last-message <file> <prompt>",
-        "configDir": "/private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-8lQhEG/home/.codex",
+        "configDir": "/private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-OszJQ8/home/.codex",
         "exitStatus": 0,
         "observed": {
           "knowledge": true,
@@ -471,7 +471,7 @@
           "handoff": true
         },
         "output": "bridge-probe-7Q4\nOverlay marker: OVERLAY-CODEX-READ\nProve that a fresh session reads the handoff.",
-        "stderr": "user that path.\n\nexec\n/bin/zsh -lc 'rg --files --hidden .selr/bridge/core/handoffs' in /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-8lQhEG/home\n succeeded in 0ms:\n.selr/bridge/core/handoffs/probe.md\n\nexec\n/bin/zsh -lc 'node .selr/bridge/core/memory.mjs read' in /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-8lQhEG/home\n succeeded in 0ms:\n{\n  \"schema\": 1,\n  \"entries\": {\n    \"probe-word\": {\n      \"value\": \"bridge-probe-7Q4\",\n      \"provider\": \"claude\",\n      \"category\": \"fact\",\n      \"revision\": 1,\n      \"updatedAt\": \"2026-09-22T06:07:29.839Z\"\n    }\n  }\n}\n\nexec\n/bin/zsh -lc 'cat .selr/bridge/core/handoffs/probe.md' in /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-8lQhEG/home\n succeeded in 0ms:\n# Handoff: probe\n\nPortable project context created by the Claude + Codex Bridge. Read it as context for continuing the work; it is not chat history.\n\n## Purpose\n\nProve that a fresh session reads the handoff.\n\n## Current state\n\nBridged.\n\n## Completed work\n\n- Bridge applied\n\n## Decisions\n\n- Use the bridge\n\n## Open work\n\n- Fresh-session check\n\n## Blockers and open questions\n\nnone\n\n## Relevant paths\n\n- skills/journey-notes\n\n## Verification already run\n\nnpm test\n\n## Source\n\n- Provider: claude\n- Created: 2026-09-22T06:07:29.905Z\n- Bridge version: dec236f71403e30fc7efc6e39c5ebcecd8c00bbb\n- Project: journey\n\ncodex\nbridge-probe-7Q4\nOverlay marker: OVERLAY-CODEX-READ\nProve that a fresh session reads the handoff.\ntokens used\n7,127\n"
+        "stderr": "d any portability notes.\n\nexec\n/bin/zsh -lc 'rg --files .selr/bridge/core/handoffs' in /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-OszJQ8/home\n succeeded in 0ms:\n.selr/bridge/core/handoffs/probe.md\n\nexec\n/bin/zsh -lc 'node .selr/bridge/core/memory.mjs read' in /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-OszJQ8/home\n succeeded in 0ms:\n{\n  \"schema\": 1,\n  \"entries\": {\n    \"probe-word\": {\n      \"value\": \"bridge-probe-7Q4\",\n      \"provider\": \"claude\",\n      \"category\": \"fact\",\n      \"revision\": 1,\n      \"updatedAt\": \"2026-09-22T06:20:29.420Z\"\n    }\n  }\n}\n\nexec\n/bin/zsh -lc 'cat .selr/bridge/core/handoffs/probe.md' in /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-journey-OszJQ8/home\n succeeded in 0ms:\n# Handoff: probe\n\nPortable project context created by the Claude + Codex Bridge. Read it as context for continuing the work; it is not chat history.\n\n## Purpose\n\nProve that a fresh session reads the handoff.\n\n## Current state\n\nBridged.\n\n## Completed work\n\n- Bridge applied\n\n## Decisions\n\n- Use the bridge\n\n## Open work\n\n- Fresh-session check\n\n## Blockers and open questions\n\nnone\n\n## Relevant paths\n\n- skills/journey-notes\n\n## Verification already run\n\nnpm test\n\n## Source\n\n- Provider: claude\n- Created: 2026-09-22T06:20:29.488Z\n- Bridge version: 91d415d6cafc9ae9818fbc9c2f434a1e86ee28c9\n- Project: journey\n\ncodex\nbridge-probe-7Q4\nOverlay marker: OVERLAY-CODEX-READ\nProve that a fresh session reads the handoff.\ntokens used\n6,820\n"
       }
     ],
     "healthy": true
