@@ -33,3 +33,6 @@ The vocabulary the code, tests and docs use. One meaning per term.
   history.
 - **Translator**: a named, tested conversion (`claude-command-to-skill`,
   `codex-command-to-skill`, `mcp-metadata`, `native:<provider>`).
+- **Project pointer**: for a selected project, `AGENTS.md` is the portable
+  instruction file and the bridge owns a `CLAUDE.md` holding only `@AGENTS.md`
+  so Claude Code reads it in every session (`--project <dir>`).

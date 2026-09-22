@@ -56,8 +56,10 @@ export const skillBlobs = dir => Object.keys(readSkill(dir).files).map(path => (
 const SECRET_KEY = /(token|secret|password|passwd|api[_-]?key|apikey|credential|cookie|auth)/i;
 function mcpEntry(provider, name, raw) {
   const entry = { name, provider, transport: raw.url ? (raw.type || 'http') : 'stdio', authRequired: false, redacted: [] };
-  if (raw.url) entry.url = String(raw.url);
-  if (raw.command) entry.command = String(raw.command);
+  const secretShaped = (label, value) => scrubFiles([{ path: `${name}.${label}`, content: String(value) }]).hits.length > 0;
+  // A URL is kept only without user info and without a key-shaped query parameter.
+  if (raw.url) { const url = String(raw.url); if (/^[a-z][a-z0-9+.-]*:\/\/[^/?#]*@/i.test(url) || /[?&][^=&]*(token|key|secret|pass|auth|sig|credential)[^=&]*=/i.test(url) || secretShaped('url', url)) { entry.redacted.push('url'); entry.authRequired = true; } else entry.url = url; }
+  if (raw.command) { const command = String(raw.command); if (secretShaped('command', command) || /\b[A-Z_]{3,}=\S+\s/.test(command)) { entry.redacted.push('command'); entry.authRequired = true; } else entry.command = command; }
   if (Array.isArray(raw.args)) {
     const scan = scrubFiles([{ path: `${name}.args`, content: raw.args.join('\n') }]);
     if (scan.hits.length) { entry.redacted.push('args'); entry.authRequired = true; } else entry.args = raw.args.map(String);
@@ -65,7 +67,6 @@ function mcpEntry(provider, name, raw) {
   for (const key of Object.keys(raw)) {
     if (['env', 'headers', 'http_headers', 'env_http_headers', 'bearer_token_env_var', 'oauth', 'auth'].includes(key) || SECRET_KEY.test(key)) { entry.redacted.push(key); entry.authRequired = true; }
   }
-  if (entry.url && /[?&](token|key|secret|api_key|apikey)=/i.test(entry.url)) { entry.redacted.push('url'); entry.authRequired = true; delete entry.url; }
   entry.redacted = [...new Set(entry.redacted)].sort();
   return entry;
 }

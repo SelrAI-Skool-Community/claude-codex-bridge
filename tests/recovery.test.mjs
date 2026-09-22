@@ -5,7 +5,7 @@
 // recovery, and leave a receipt a third run does not change.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -177,4 +177,38 @@ test('the operation lock is reclaimed only from a stopped owner on this computer
     assert.ok(swept.recovery.actions.some(a => /temporary/.test(a)));
     assertComplete(fx, 'lock');
   } finally { fx.cleanup(); }
+});
+
+test('resolution, translation, project pointer and uninstall are killed at every boundary and complete on the next run', () => {
+  const scenarios = [
+    { label: 'resolve', seed: fx => { seedBoth(fx); B.bridge(fx); fx.write(fx.skillPath('claude', 'notes'), skill('notes', 'claude\n')['SKILL.md']); fx.write(fx.skillPath('codex', 'notes'), skill('notes', 'codex\n')['SKILL.md']); }, plan: fx => B.plan(fx, { resolve: { notes: 'codex' } }), replan: fx => B.plan(fx, { resolve: { notes: 'codex' } }), done: fx => { assert.equal(fx.readText(fx.skillPath('claude', 'notes')), skill('notes', 'codex\n')['SKILL.md']); assertComplete(fx, 'resolve'); } },
+    { label: 'translate', seed: fx => { seedBoth(fx); fx.seed('claude', { commands: { plain: 'Write a summary.\n' } }); }, plan: fx => B.plan(fx), replan: fx => B.plan(fx), done: fx => { assert.ok(fx.readText(fx.skillPath('codex', 'plain'))?.includes('Write a summary.')); assertComplete(fx, 'translate'); } },
+    { label: 'project', seed: fx => { seedBoth(fx); mkdirSync(join(fx.root, 'proj')); writeFileSync(join(fx.root, 'proj/AGENTS.md'), 'Rules.\n'); }, plan: fx => B.plan(fx, { projects: [join(fx.root, 'proj')] }), replan: fx => B.plan(fx, { projects: [join(fx.root, 'proj')] }), done: fx => { assert.equal(fx.readText(join(fx.root, 'proj/CLAUDE.md')), '@AGENTS.md\n'); assert.ok(fx.manifest().projects[join(fx.root, 'proj')].hash); assertComplete(fx, 'project'); } },
+    { label: 'kit-update', seed: fx => { seedBoth(fx); B.bridge(fx); const newer = join(fx.root, 'kit-newer'); mkdirSync(newer); for (const part of ['scripts', 'core', 'skills', 'VERSION']) cpSync(join(REPO, part), join(newer, part), { recursive: true }); writeFileSync(join(newer, 'skills/claude-codex-bridge/SKILL.md'), readFileSync(join(REPO, 'skills/claude-codex-bridge/SKILL.md'), 'utf8') + '\nNewer kit line.\n'); }, plan: fx => B.plan(fx, { kit: join(fx.root, 'kit-newer') }), replan: fx => B.plan(fx, { kit: join(fx.root, 'kit-newer') }), done: fx => { for (const x of ['claude', 'codex']) assert.ok(fx.readText(fx.skillPath(x, 'claude-codex-bridge')).includes('Newer kit line.'), `${x} updated`); assert.ok(B.verify(fx, { kit: join(fx.root, 'kit-newer') }).healthy, B.verify(fx, { kit: join(fx.root, 'kit-newer') }).summary); assert.equal(B.plan(fx, { kit: join(fx.root, 'kit-newer') }).noop, true); } },
+    { label: 'uninstall', seed: fx => { seedBoth(fx); B.bridge(fx); }, plan: fx => B.plan(fx, { intent: 'uninstall' }), replan: fx => B.plan(fx, { intent: 'uninstall' }), done: fx => { assert.equal(existsSync(join(fx.home, '.selr/bridge/manifest.json')), false); assert.equal(fx.readText(fx.instructions('claude')), 'Always call me Sam.\n'); assert.equal(fx.readText(fx.instructions('codex')), 'Always call me Sam.\n'); assert.equal(existsSync(fx.corePath('memory.mjs')), false); } },
+  ];
+  let passes = 0;
+  for (const sc of scenarios) {
+    const probe = fixtureHome(`rb-${sc.label}`);
+    let boundaries;
+    try { sc.seed(probe); const p = sc.plan(probe); const dry = runApply(probe, p.id); assert.equal(dry.status, 0, `${sc.label}: ${dry.stderr}`); boundaries = dry.boundaries.filter(b => b !== 'lock'); } finally { probe.cleanup(); }
+    assert.ok(boundaries.length >= 2, `${sc.label}: ${boundaries.join(' ')}`);
+    if (sc.label === 'resolve') assert.ok(boundaries.some(b => b.startsWith('preserve:')) && boundaries.some(b => b.startsWith('drop:') || b.includes('skill')), boundaries.join(' '));
+    if (sc.label === 'uninstall') assert.ok(boundaries.some(b => b.startsWith('uninstall:')) && boundaries.some(b => b.startsWith('remove-block:')), boundaries.join(' '));
+    for (const killAt of boundaries) {
+      const fx = fixtureHome(`rb-${sc.label}-case`);
+      try {
+        sc.seed(fx);
+        const p = sc.plan(fx);
+        const killed = runApply(fx, p.id, killAt);
+        assert.equal(killed.signal, 'SIGKILL', `${sc.label} @ ${killAt}: ${killed.stderr}`);
+        const again = sc.replan(fx);
+        const recovered = runApply(fx, again.id);
+        assert.equal(recovered.status, 0, `${sc.label} @ ${killAt}: ${recovered.stderr}`);
+        sc.done(fx);
+        passes++;
+      } finally { fx.cleanup(); }
+    }
+  }
+  assert.ok(passes >= 10, `${passes} boundaries`);
 });

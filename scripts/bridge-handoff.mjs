@@ -3,7 +3,7 @@
 // before it is saved. Never written into a provider's transcript store.
 import { existsSync, readdirSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { hash, read, safePath, save } from './bridge-files.mjs';
+import { acquireLock, hash, read, safePath, save } from './bridge-files.mjs';
 import { loadManifest, paths } from './bridge-engine.mjs';
 import { scrubFiles } from './scrub.mjs';
 import { checkPortability } from './portability.mjs';
@@ -44,10 +44,20 @@ export function createHandoff({ home, input, provider, kitVersion = 'unknown', c
   const path = join(p.handoffs, `${name}.md`);
   safePath(path);
   if (existsSync(path) && manifest.core.handoffs?.[name]?.hash !== hash(read(path))) return { saved: false, blocked: true, name, path, hits: [], warnings: [], summary: `A handoff named "${name}" already exists at ${path} and was edited by hand; choose another name or remove it deliberately.` };
-  save(path, body);
-  manifest.core.handoffs ||= {};
-  manifest.core.handoffs[name] = { path, hash: hash(body), provider, createdAt };
-  save(p.manifest, JSON.stringify(manifest, null, 2) + '\n');
+  // The same lock and pending-intent record as every other bridge write: a
+  // handoff cut short by a stopped process is never mistaken for a user file.
+  const held = acquireLock(p.shared, 'handoff');
+  try {
+    const current = loadManifest(home);
+    if (current.pending) throw Error(`An operation (plan ${current.pending.planId}) stopped part-way; run plan and apply to continue it before creating a handoff.`);
+    current.pending = { startedAt: createdAt, intent: 'handoff', planId: null, files: { [path]: hash(body) }, removals: {} };
+    save(p.manifest, JSON.stringify(current, null, 2) + '\n');
+    save(path, body);
+    current.core.handoffs ||= {};
+    current.core.handoffs[name] = { path, hash: hash(body), provider, createdAt };
+    delete current.pending;
+    save(p.manifest, JSON.stringify(current, null, 2) + '\n');
+  } finally { held.release(); }
   return { saved: true, blocked: false, name, path, hits: [], warnings: portability.warnings.map(w => ({ ruleId: w.ruleId, line: w.line, reference: w.reference, plain: w.plain })), summary: `Saved ${path}.${portability.warnings.length ? ` ${portability.warnings.length} portability note${portability.warnings.length === 1 ? '' : 's'}: machine-specific references the reader on another computer should know about.` : ''} The other provider reads it as project context at the start of its next task.` };
 }
 export function listHandoffs({ home }) {

@@ -1,12 +1,11 @@
 # Codex overlay
 
-Read by Codex only. Claude Code has its own overlay; the bridge never copies
-one into the other. Put Codex model routing, sandbox and approval posture, and
-tool preferences here.
+Read by Codex only: model routing, sandbox and approval posture, and tool
+preferences.
 
 ## Model routing
 
-The session model (`gpt-6-astra` by default) does judgement, design, coding
+The session model does everything that requires judgement: design, coding
 choices, review, debugging and synthesis. Subagents inherit the session model
 and effort: leave overrides unset.
 

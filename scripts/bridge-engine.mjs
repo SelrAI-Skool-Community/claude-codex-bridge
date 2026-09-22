@@ -7,7 +7,7 @@
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs';
 import { homedir, platform } from 'node:os';
-import { dirname, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { acquireLock, hash, read, safePath, save, sweepTemps, tree } from './bridge-files.mjs';
 import { installSkill, retireSkill } from './bridge-skills.mjs';
@@ -24,7 +24,7 @@ const other = p => p === 'claude' ? 'codex' : 'claude';
 const short = v => typeof v === 'string' ? v.slice(0, 9) : 'unknown';
 const dirHash = files => hash(JSON.stringify(Object.entries(files).sort(([a], [b]) => a.localeCompare(b))));
 const skillFilesHash = dir => existsSync(dir) ? dirHash(readSkill(dir).files) : null;
-export const adapterBlock = ({ manifestPath, kit, provider, instructions, overlay, contract, skillRoot }) => `${BLOCK_BEGIN}\n## Claude + Codex Bridge\n\nBridge receipt: ${manifestPath}\nKit home: ${kit}\nCurrent provider: ${provider}.\nAt the first message of each task, read ${instructions}, then ${overlay}, then follow ${contract}.\nShared skills: ${skillRoot}\n${BLOCK_END}`;
+export const adapterBlock = ({ core, kit, provider, instructions, overlay, contract }) => `${BLOCK_BEGIN}\n## Claude + Codex Bridge\n\nKit home: ${kit}\nBridge core: ${core}\nCurrent provider: ${provider}.\nAt the first message of each task, read ${instructions}, then ${overlay}, then follow ${contract}.\n${BLOCK_END}`;
 const validName = name => /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(name) && !name.includes('..');
 
 export function kitVersion(kit) {
@@ -66,7 +66,12 @@ export function inspect({ home = homedir(), kit = KIT_DEFAULT, providerHomes = {
   const lock = join(p.shared, 'operation.lock');
   const receipt = { path: p.manifest, exists: Boolean(manifest), pending: manifest?.pending || null, lock: existsSync(lock), kitVersion: manifest?.kit?.version || null, providers: Object.fromEntries(Object.entries(manifest?.providers || {}).map(([k, v]) => [k, { ready: v.ready, host: v.host, installedAt: v.installedAt }])) };
   const nativeImport = Object.fromEntries(PROVIDERS.map(x => [x, providers[x].present ? probe({ provider: x, env }) : { provider: x, source: other(x), available: false, mode: 'unavailable', version: null, items: [], command: null, reason: `${x} is not installed here.` }]));
-  return { schema: 1, home, kit, kitVersion: kitVersion(kit), providers, core, receipt, nativeImport, conflictsRoot: p.conflicts };
+  const found = PROVIDERS.filter(x => providers[x].present);
+  const count = (x, key) => providers[x][key].length;
+  const summary = found.length
+    ? `${found.map(x => `${x === 'claude' ? 'Claude Code' : 'Codex'}: ${count(x, 'skills')} skills, ${count(x, 'commands')} ${x === 'claude' ? 'commands' : 'prompts'}, ${count(x, 'subagents')} subagents, ${count(x, 'mcp')} MCP servers, ${providers[x].privateStores.filter(s => s.present).length} private stores left alone`).join('; ')}. ${manifest ? `Bridge receipt present for ${Object.keys(manifest.providers).join(' and ') || 'no provider'}${manifest.pending ? '; an operation stopped part-way' : ''}.` : 'No bridge installed yet.'} Nothing was changed.`
+    : 'Neither Claude Code nor Codex configuration was found on this computer. Nothing was changed.';
+  return { schema: 1, home, kit, kitVersion: kitVersion(kit), providers, core, receipt, nativeImport, conflictsRoot: p.conflicts, summary };
 }
 
 // --- Classify -----------------------------------------------------------------
@@ -87,8 +92,31 @@ export function translateCommandToSkill({ name, body, provider }) {
   return { 'SKILL.md': `---\nname: ${name}\ndescription: ${description.replace(/\n/g, ' ')}\n---\n\n${text.trim()}\n\nTranslated from the ${provider} command \`${name}\` by the Claude + Codex Bridge (translator: ${provider}-command-to-skill).\n` };
 }
 
-export function classify(inv, { only = null, skip = [], instructionsFrom = null, resolve: resolutions = {} } = {}) {
+// Selected-project instructions: AGENTS.md is the portable file (Codex reads it,
+// Claude Code 2.1.277+ reads it directly, and a CLAUDE.md holding only
+// `@AGENTS.md` is the documented fallback). The bridge owns that pointer only.
+export const PROJECT_POINTER = '@AGENTS.md\n';
+export function classifyProjects(inv, projects) {
   const items = [];
+  const receipts = inv.manifest?.projects || {};
+  const staged = Object.entries(inv.manifest?.pending?.files || {}).filter(([path, h]) => path.endsWith(`${sep}CLAUDE.md`) && h === hash(PROJECT_POINTER)).map(([path]) => dirname(path));
+  for (const dir of [...new Set([...projects, ...Object.keys(receipts), ...staged])].sort()) {
+    const agents = join(dir, 'AGENTS.md'), claude = join(dir, 'CLAUDE.md');
+    const hasAgents = existsSync(agents), hasClaude = existsSync(claude);
+    const owned = receipts[dir];
+    const claudeBody = read(claude);
+    const item = (disposition, fields) => items.push({ id: `project:${dir}`, kind: 'project', name: dir, disposition, collision: 'none', userAction: null, source: agents, destination: claude, ...fields });
+    if (!existsSync(dir) || !lstatSync(dir).isDirectory()) { item('unsupported', { reason: 'This project folder was not found.' }); continue; }
+    if (hasAgents && !hasClaude) item('translated', { translator: 'agents-md-pointer', reason: 'AGENTS.md is the portable project instruction file. A CLAUDE.md holding only `@AGENTS.md` makes Claude Code read it in every session, including sessions without direct AGENTS.md support.' });
+    else if (hasAgents && hasClaude && claudeBody === PROJECT_POINTER) item('translated', { translator: 'agents-md-pointer', reason: owned && owned.hash === hash(claudeBody) ? 'The pointer is in place and bridge-owned.' : 'A CLAUDE.md pointer to AGENTS.md already exists; the bridge records it as owned so it can be removed with the bridge.', already: true, adopt: !owned });
+    else if (hasAgents && hasClaude) item('unsupported', { collision: owned && owned.hash !== hash(claudeBody) ? 'customised' : 'both-exist', userAction: `${dir} has both AGENTS.md and a CLAUDE.md with its own content. Move the CLAUDE.md content into AGENTS.md and leave CLAUDE.md as \`@AGENTS.md\`, then plan again.`, reason: 'Two project instruction files with different content are never merged silently.' });
+    else if (!hasAgents && hasClaude) item('claude-only', { source: claude, destination: null, userAction: `Rename ${claude} to AGENTS.md (Codex reads it; Claude Code reads it directly or through the pointer the bridge adds), then plan again.`, reason: 'Only Claude reads CLAUDE.md. The portable project file is AGENTS.md.' });
+    else item('unsupported', { reason: 'No project instruction file was found in this folder.' });
+  }
+  return items;
+}
+export function classify(inv, { only = null, skip = [], instructionsFrom = null, resolve: resolutions = {}, projects = [] } = {}) {
+  const items = [...classifyProjects(inv, projects)];
   const receiptProviders = inv.receipt.providers;
   const present = Object.fromEntries(PROVIDERS.map(p => [p, inv.providers[p].present]));
   const managed = (provider, name) => Boolean(receiptProviders[provider] && inv.manifest?.providers?.[provider]?.skills?.[name]);
@@ -125,8 +153,8 @@ export function classify(inv, { only = null, skip = [], instructionsFrom = null,
       if (!validName(name)) { item('skill', `${provider}/${name}`, 'unsupported', { source: skill.dir, destination: null, reason: 'This skill folder name cannot be represented safely; it is left where it is.' }); continue; }
       if (skill.linked || skill.links.length) { item('skill', `${provider}/${name}`, `${provider}-only`, { source: skill.dir, destination: null, reason: 'This skill contains a link, so it stays where it is; the bridge copies ordinary files only.' }); continue; }
       if (!skill.managedRoot) { item('skill', `${provider}/${name}`, `${provider}-only`, { source: skill.dir, destination: null, reason: `Found in ${provider}'s secondary skill folder ${skill.root}. The bridge manages ${found.skillRoot}; move it there to share it.` }); continue; }
-      if (only && !only.includes(name)) { item('skill', `${provider}/${name}`, `${provider}-only`, { source: skill.dir, destination: null, reason: 'Not in the selection you asked to share.' }); continue; }
       if (skip.includes(name)) { item('skill', `${provider}/${name}`, `${provider}-only`, { source: skill.dir, destination: null, reason: 'You asked to keep this skill provider-specific.' }); continue; }
+      if (only && !only.includes(name)) { item('skill', `${provider}/${name}`, `${provider}-only`, { source: skill.dir, destination: null, reason: 'Not in the selection you asked to share.' }); continue; }
       let blobs; try { blobs = skillBlobs(skill.dir); } catch { item('skill', `${provider}/${name}`, 'unsupported', { source: skill.dir, destination: null, reason: 'This skill could not be read completely, so it is not shared.' }); continue; }
       const scrub = scrubFiles(blobs);
       if (scrub.hits.length) { item('skill', `${provider}/${name}`, 'unsupported', { source: skill.dir, destination: null, userAction: `Remove the secret from ${scrub.hits.map(h => `${h.path}:${h.line} (${h.ruleId})`).join(', ')} before sharing.`, reason: 'A secret-shaped value was found inside this skill. Nothing containing a secret is copied.' }); continue; }
@@ -156,6 +184,12 @@ export function classify(inv, { only = null, skip = [], instructionsFrom = null,
       else if (reasons.length) item('command', `${provider}/${command.name}`, `${provider}-only`, { source: command.path, destination: null, reason: `This ${provider === 'claude' ? 'command' : 'prompt'} ${reasons.join(' and ')}; the ${provider}-command-to-skill translator only carries plain instruction text, so it stays ${provider}-specific.` });
       else if (scrubFiles([{ path: command.name, content: body }]).hits.length) item('command', `${provider}/${command.name}`, 'unsupported', { source: command.path, destination: null, reason: 'A secret-shaped value was found in this command; nothing containing a secret is copied.' });
       else if (only && !only.includes(skillName) || skip.includes(skillName)) item('command', `${provider}/${command.name}`, `${provider}-only`, { source: command.path, destination: null, reason: 'Not selected for sharing.' });
+      else if (inv.providers[other(provider)].present && inv.providers[other(provider)].commands.some(c => c.name === command.name && read(c.path) !== body)) {
+        const choice = resolutions[skillName];
+        if (choice === provider) item('command', `${provider}/${command.name}`, 'translated', { source: command.path, destination: join(inv.core.root, 'skills', skillName), translator: `${provider}-command-to-skill`, reason: `You chose the ${provider} version of this command; the ${other(provider)} version stays where it is.`, from: provider, skillName, collision: 'resolved' });
+        else if (choice === other(provider) || choice === 'keep-separate') item('command', `${provider}/${command.name}`, `${provider}-only`, { source: command.path, destination: null, reason: choice === 'keep-separate' ? 'You chose to keep both versions provider-specific.' : `You chose the ${other(provider)} version.`, collision: 'resolved' });
+        else item('command', `${provider}/${command.name}`, 'translated', { source: command.path, destination: join(inv.core.root, 'skills', skillName), collision: 'conflict', userAction: `Both providers have a command named "${command.name}" with different text. Choose with --resolve ${skillName}=claude|codex|keep-separate.`, reason: 'Two different commands would become one skill; nothing is written until you choose.' });
+      }
       else item('command', `${provider}/${command.name}`, 'translated', { source: command.path, destination: join(inv.core.root, 'skills', skillName), translator: `${provider}-command-to-skill`, reason: `Plain instruction text with no arguments, shell interpolation or file references: it becomes the portable skill "${skillName}" available in both providers. The original ${provider} file is left in place.`, from: provider, skillName });
     }
     for (const agent of found.subagents) item('subagent', `${provider}/${agent.name}`, `${provider}-only`, { source: agent.path, destination: null, reason: 'Subagent definitions have no translator with a proven behavioural equivalent yet, so this one stays where it works.' });
@@ -222,11 +256,17 @@ export function plan(options = {}) {
     for (const x of present) coreFile(`overlay:${x}`, join(p.overlays, `${x}.md`), src.overlay(x), `overlay:${x}`);
     if (seed && seed.collision !== 'conflict') {
       const from = PROVIDERS.find(x => present.includes(x) && seed.source === inv.providers[x].instructions.path) || null;
-      const body = seed.recovered ? read(p.instructions) : from ? inv.providers[from].instructions.userBody.trim() + '\n' : read(src.defaultInstructions);
-      if (from) pre(`${inv.providers[from].instructions.path}#user-body`, hash(body));
-      ops.push({ op: 'seed-instructions', path: p.instructions, from, body, hash: hash(body), checkpoint: 'core:instructions' });
+      const source = seed.recovered ? p.instructions : from ? inv.providers[from].instructions.path : src.defaultInstructions;
+      const sourceKind = seed.recovered ? 'core' : from ? 'provider' : 'kit';
+      const body = sourceKind === 'provider' ? discoverBody(source) : read(source);
+      const hits = scrubFiles([{ path: 'instructions', content: body }]).hits;
+      if (hits.length) { Object.assign(seed, { collision: 'conflict', userAction: `Remove the secret-shaped value at ${hits.map(h => `line ${h.line} (${h.ruleId})`).join(', ')} of ${source} before it seeds the portable instructions, or choose --instructions-from none.`, reason: 'A secret-shaped value was found in the global instructions; nothing containing a secret is copied into the portable core.' }); conflicts.push(seed); }
+      else {
+        if (sourceKind === 'provider') pre(`${source}#user-body`, hash(body));
+        ops.push({ op: 'seed-instructions', path: p.instructions, from, source, sourceKind, hash: hash(body), checkpoint: 'core:instructions' });
+      }
     }
-    if (seed?.collision === 'conflict') conflicts.push(seed);
+    if (seed?.collision === 'conflict' && !conflicts.includes(seed)) conflicts.push(seed);
     // Skills and translated commands: into the core, then into every present provider.
     for (const it of items.filter(i => (i.kind === 'skill' || i.kind === 'command') && i.disposition !== 'unsupported')) {
       if (it.collision === 'conflict') { conflicts.push(it); continue; }
@@ -236,27 +276,12 @@ export function plan(options = {}) {
         const sourceDir = join(inv.providers[from].skillRoot, name);
         pre(sourceDir, skillFilesHash(sourceDir));
         if (it.adoptFrom) { const loser = other(from); ops.push({ op: 'preserve-candidate', name, provider: loser, dir: join(inv.providers[loser].skillRoot, name) }); ops.push({ op: 'replace-unowned-skill', name, provider: loser, dir: join(inv.providers[loser].skillRoot, name) }); }
-        ops.push({ op: 'share-skill', name, sourceDir, from, providers: present, origin: from, adopt: it.collision === 'equal' ? present.filter(x => x !== from) : [] });
+        const adopt = it.collision === 'equal' ? present.filter(x => x !== from) : [];
+        for (const x of adopt) pre(join(inv.providers[x].skillRoot, name), skillFilesHash(join(inv.providers[x].skillRoot, name)));
+        ops.push({ op: 'share-skill', name, sourceDir, from, providers: present, origin: from, adopt });
       } else if (it.kind === 'command' && it.disposition === 'translated') {
         pre(it.source, hash(read(it.source)));
         ops.push({ op: 'translate-command', name: it.skillName, from: it.from, source: it.source, files: translateCommandToSkill({ name: it.skillName, body: read(it.source), provider: it.from }), providers: present, translator: it.translator });
-      }
-    }
-    // The kit's own skill rides the same path as any shared skill, and follows a
-    // kit update only while every copy still matches the baseline.
-    const kitSkill = join(inv.kit, 'skills/claude-codex-bridge');
-    if (existsSync(kitSkill)) {
-      const name = 'claude-codex-bridge';
-      const entry = manifest?.core?.skills?.[name];
-      const kitFiles = readSkill(kitSkill).files;
-      const unowned = present.filter(x => !manifest?.providers?.[x]?.skills?.[name] && existsSync(join(inv.providers[x].skillRoot, name)));
-      if (!entry?.baseline) {
-        if (unowned.length) { const c = { id: `skill:${name}`, kind: 'skill', name, disposition: 'shared', source: kitSkill, destination: join(p.skills, name), collision: 'conflict', userAction: `${unowned.join(' and ')} already ha${unowned.length === 1 ? 's' : 've'} an unmanaged skill named "${name}". Remove it, or choose --resolve ${name}=core to replace it (the existing copy is preserved first).`, reason: 'The bridge skill would collide with a copy it does not own.' }; if (options.resolve?.[name] === 'core') { for (const x of unowned) { ops.push({ op: 'preserve-candidate', name, provider: x, dir: join(inv.providers[x].skillRoot, name) }); ops.push({ op: 'replace-unowned-skill', name, provider: x, dir: join(inv.providers[x].skillRoot, name) }); } items.push({ ...c, collision: 'resolved', userAction: null }); pre(kitSkill, dirHash(kitFiles)); ops.push({ op: 'share-skill', name, sourceDir: kitSkill, from: 'kit', providers: present, origin: 'kit' }); } else { items.push(c); conflicts.push(c); } }
-        else { pre(kitSkill, dirHash(kitFiles)); ops.push({ op: 'share-skill', name, sourceDir: kitSkill, from: 'kit', providers: present, origin: 'kit' }); items.push({ id: `skill:${name}`, kind: 'skill', name, disposition: 'shared', source: kitSkill, destination: join(p.skills, name), collision: 'none', userAction: null, reason: 'The bridge skill itself is installed in both providers so either app can run the bridge.' }); }
-      } else if (dirHash(kitFiles) !== dirHash(entry.baseline)) {
-        const sidesUnchanged = [join(p.skills, name), ...present.filter(x => manifest.providers[x]).map(x => join(inv.providers[x].skillRoot, name))].every(dir => !existsSync(dir) || dirHash(readSkill(dir).files) === dirHash(entry.baseline));
-        if (sidesUnchanged) { pre(kitSkill, dirHash(kitFiles)); ops.push({ op: 'promote-skill', name, from: 'kit', sourceDir: kitSkill, providers: present.filter(x => manifest.providers[x]), force: false }); items.push({ id: `skill:${name}`, kind: 'skill', name, disposition: 'shared', source: kitSkill, destination: join(p.skills, name), collision: 'none', userAction: null, reason: 'A newer bridge skill from the kit replaces the unchanged copies.' }); }
-        else items.push({ id: `skill:${name}`, kind: 'skill', name, disposition: 'shared', source: kitSkill, destination: join(p.skills, name), collision: 'customised', userAction: null, reason: 'The kit has a newer bridge skill, but a copy was customised; it is left as it is.' });
       }
     }
     // Reconcile every skill the bridge already manages.
@@ -277,6 +302,23 @@ export function plan(options = {}) {
       for (const [file, h] of Object.entries(out)) if (!(file in baseline) && bridgeWrote(file, h)) delete out[file];
       return out;
     };
+    // The kit's own skill rides the same path as any shared skill, and follows a
+    // kit update only while every copy still matches the baseline.
+    const kitSkill = join(inv.kit, 'skills/claude-codex-bridge');
+    if (existsSync(kitSkill)) {
+      const name = 'claude-codex-bridge';
+      const entry = manifest?.core?.skills?.[name];
+      const kitFiles = readSkill(kitSkill).files;
+      const unowned = present.filter(x => !manifest?.providers?.[x]?.skills?.[name] && existsSync(join(inv.providers[x].skillRoot, name)));
+      if (!entry?.baseline) {
+        if (unowned.length) { const c = { id: `skill:${name}`, kind: 'skill', name, disposition: 'shared', source: kitSkill, destination: join(p.skills, name), collision: 'conflict', userAction: `${unowned.join(' and ')} already ha${unowned.length === 1 ? 's' : 've'} an unmanaged skill named "${name}". Remove it, or choose --resolve ${name}=core to replace it (the existing copy is preserved first).`, reason: 'The bridge skill would collide with a copy it does not own.' }; if (options.resolve?.[name] === 'core') { for (const x of unowned) { ops.push({ op: 'preserve-candidate', name, provider: x, dir: join(inv.providers[x].skillRoot, name) }); ops.push({ op: 'replace-unowned-skill', name, provider: x, dir: join(inv.providers[x].skillRoot, name) }); } items.push({ ...c, collision: 'resolved', userAction: null }); pre(kitSkill, dirHash(kitFiles)); ops.push({ op: 'share-skill', name, sourceDir: kitSkill, from: 'kit', providers: present, origin: 'kit' }); } else { items.push(c); conflicts.push(c); } }
+        else { pre(kitSkill, dirHash(kitFiles)); ops.push({ op: 'share-skill', name, sourceDir: kitSkill, from: 'kit', providers: present, origin: 'kit' }); items.push({ id: `skill:${name}`, kind: 'skill', name, disposition: 'shared', source: kitSkill, destination: join(p.skills, name), collision: 'none', userAction: null, reason: 'The bridge skill itself is installed in both providers so either app can run the bridge.' }); }
+      } else if (dirHash(kitFiles) !== dirHash(entry.baseline)) {
+        const sidesUnchanged = [[join(p.skills, name), entry.files], ...present.filter(x => manifest.providers[x]).map(x => [join(inv.providers[x].skillRoot, name), manifest.providers[x].skills?.[name]?.files])].every(([dir, receipt]) => !existsSync(dir) || dirHash(masked(readSkill(dir).files, dir, entry.baseline, receipt || {})) === dirHash(entry.baseline));
+        if (sidesUnchanged) { pre(kitSkill, dirHash(kitFiles)); ops.push({ op: 'promote-skill', name, from: 'kit', sourceDir: kitSkill, providers: present.filter(x => manifest.providers[x]), force: false }); items.push({ id: `skill:${name}`, kind: 'skill', name, disposition: 'shared', source: kitSkill, destination: join(p.skills, name), collision: 'none', userAction: null, reason: 'A newer bridge skill from the kit replaces the unchanged copies.' }); }
+        else items.push({ id: `skill:${name}`, kind: 'skill', name, disposition: 'shared', source: kitSkill, destination: join(p.skills, name), collision: 'customised', userAction: null, reason: 'The kit has a newer bridge skill, but a copy was customised; it is left as it is.' });
+      }
+    }
     for (const name of Object.keys(baselineSkills).sort()) {
       if (!baselineSkills[name].baseline) continue; // an initial share that stopped part-way is re-proposed above
       if (name === 'claude-codex-bridge' && ops.some(o => o.name === name)) continue;
@@ -292,7 +334,7 @@ export function plan(options = {}) {
         if (existsSync(dir)) { const c = { id: `join:${x}/${name}`, kind: 'sync', name, disposition: 'shared', source: coreDir, destination: dir, collision: 'conflict', userAction: `${x} already has an unmanaged skill named "${name}". Rename or remove it, or choose --resolve ${name}=core to replace it (the existing copy is preserved first).`, reason: 'Same name as a shared skill, but this copy is not bridge-owned. Nothing is written until you choose.' }; if (options.resolve?.[name] === 'core') { ops.push({ op: 'preserve-candidate', name, provider: x, dir }); ops.push({ op: 'replace-unowned-skill', name, provider: x, dir }); ops.push({ op: 'install-core-skill', name, sourceDir: coreDir, providers: [x] }); items.push({ ...c, collision: 'resolved', userAction: null }); } else { items.push(c); conflicts.push(c); } }
         else { ops.push({ op: 'install-core-skill', name, sourceDir: coreDir, providers: [x] }); items.push({ id: `join:${x}/${name}`, kind: 'sync', name, disposition: 'shared', source: coreDir, destination: dir, collision: 'none', userAction: null, reason: `${x} receives the shared skill "${name}" from the portable core.` }); }
       }
-      if (joiners.length && !present.every(x => manifest.providers[x])) continue;
+      if (joiners.length) continue; // reconciled on the next plan, once every provider owns a copy
       const choice = options.resolve?.[name];
       let decision = result.decision, from = result.from;
       if (decision === 'conflict' && choice) {
@@ -314,13 +356,18 @@ export function plan(options = {}) {
       }
       items.push({ id: `sync:${name}`, kind: 'sync', name, disposition: 'shared', source: fromDir, destination: coreDir, collision: choice ? 'resolved' : 'none', userAction: null, reason: choice ? `You chose the ${from} copy. Every other candidate is preserved under ${join(p.conflicts, name)}.` : result.reason, decision, from });
     }
+    for (const it of items.filter(i => i.kind === 'project' && i.disposition === 'translated')) {
+      const rec = manifest?.projects?.[it.name];
+      if (it.already && rec?.hash === hash(PROJECT_POINTER)) continue;
+      ops.push({ op: 'project-pointer', dir: it.name, path: it.destination, body: PROJECT_POINTER, adopt: Boolean(it.already) });
+    }
     const mcpItems = items.filter(i => i.kind === 'mcp' && i.disposition === 'translated');
     const inventoryBody = JSON.stringify({ schema: 1, note: 'Non-secret MCP metadata inventoried by the Claude + Codex Bridge. Recreate a server in the other provider from this and sign in there; credentials are never copied.', servers: mcpItems.map(i => i.metadata) }, null, 2) + '\n';
     if (mcpItems.length && (!existsSync(p.mcp) || read(p.mcp) !== inventoryBody)) ops.push({ op: 'write-core-file', key: 'mcpInventory', path: p.mcp, body: inventoryBody, hash: hash(inventoryBody), checkpoint: 'mcp-inventory' });
     for (const x of present) {
       const block = items.find(i => i.kind === 'instruction-block' && i.name === x);
       if (block.disposition === 'unsupported') { conflicts.push(block); continue; }
-      const expected = adapterBlock({ manifestPath: p.manifest, kit: inv.kit, provider: x, instructions: p.instructions, overlay: join(p.overlays, `${x}.md`), contract: p.contract, skillRoot: inv.providers[x].skillRoot });
+      const expected = adapterBlock({ core: p.core, kit: inv.kit, provider: x, instructions: p.instructions, overlay: join(p.overlays, `${x}.md`), contract: p.contract });
       const { blocks } = managedBlocks(read(inv.providers[x].instructions.path));
       const rec = manifest?.providers?.[x];
       if (rec?.ready && rec.instructions === inv.providers[x].instructions.path && rec.skillRoot === inv.providers[x].skillRoot && blocks.length === 1 && blocks[0] === expected && rec.adapterHash === hash(expected)) continue;
@@ -391,7 +438,7 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
     const coreSkillRoot = p.skills;
     const coreReceipt = () => { manifest.core.skills ||= {}; return { skills: manifest.core.skills }; };
     const providerSkillRoot = provider => manifest.providers[provider]?.skillRoot || record.operations.find(o => o.op === 'adapter' && o.provider === provider)?.skillRoot;
-    const writeSkillEverywhere = ({ name, sourceDir, providers, origin, files = null, adopt = [] }) => {
+    const writeSkillEverywhere = ({ name, sourceDir, providers, origin, files = null, adopt = [], keepBaseline = false }) => {
       let source = sourceDir;
       let staging = null;
       if (files) { staging = join(p.shared, 'staging', name); rmSync(staging, { recursive: true, force: true }); for (const [file, body] of Object.entries(files)) save(join(staging, file), body); source = staging; }
@@ -422,6 +469,7 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
         // Every copy is written: the source's receipt and the baseline (the last
         // reconciled content) are recorded together, last.
         const reconciled = readSkill(source).files;
+        if (keepBaseline) { persist(); return; } // a joining provider receives the copy; the baseline is untouched
         if (sourceIsCore) coreRec.skills[name] = { ...coreRec.skills[name], files: reconciled, version: record.kitVersion, origin: beforeCore?.origin || origin };
         if (sourceProvider) skillReceipt(sourceProvider).skills[name] = { files: reconciled, version: record.kitVersion };
         if (coreRec.skills[name]) coreRec.skills[name].baseline = reconciled;
@@ -452,11 +500,26 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
           break;
         }
         case 'seed-instructions': {
-          if (existsSync(op.path) && current(op.path) !== pending[op.path]) { kept.push(op.path); break; }
+          const body = op.sourceKind === 'provider' ? discoverBody(op.source) : read(op.source);
+          if (hash(body) !== op.hash) throw Error(`The plan is stale: ${op.source} changed after it was made. Run plan again and apply the new id.`);
+          if (existsSync(op.path) && current(op.path) !== pending[op.path] && current(op.path) !== op.hash) { kept.push(op.path); break; }
           adoptIfStaged(op.path, null);
-          stage([[op.path, op.body]]);
-          save(op.path, op.body); checkpoint(op.checkpoint);
+          stage([[op.path, body]]);
+          save(op.path, body); checkpoint(op.checkpoint);
           manifest.core.instructions = { path: op.path, seededFrom: op.from, seededAt: new Date().toISOString() };
+          commit([op.path]); persist();
+          break;
+        }
+        case 'project-pointer': {
+          manifest.projects ||= {};
+          const committed = manifest.projects[op.dir]?.hash;
+          safePath(op.path);
+          if (op.adopt && current(op.path) === hash(op.body)) { manifest.projects[op.dir] = { pointer: op.path, hash: hash(op.body), adoptedAt: new Date().toISOString() }; persist(); break; }
+          if (!ours(op.path, committed)) { kept.push(op.path); break; }
+          adoptIfStaged(op.path, committed);
+          stage([[op.path, op.body]]);
+          save(op.path, op.body, 0o644); checkpoint(`project:${basename(op.dir)}`);
+          manifest.projects[op.dir] = { pointer: op.path, hash: hash(op.body), version: record.kitVersion };
           commit([op.path]); persist();
           break;
         }
@@ -471,7 +534,7 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
           commitRemovals(files); persist();
           break;
         }
-        case 'install-core-skill': writeSkillEverywhere({ name: op.name, sourceDir: op.sourceDir, providers: op.providers, origin: 'core' }); break;
+        case 'install-core-skill': writeSkillEverywhere({ name: op.name, sourceDir: op.sourceDir, providers: op.providers, origin: 'core', keepBaseline: true }); break;
         case 'share-skill': writeSkillEverywhere({ name: op.name, sourceDir: op.sourceDir, providers: op.providers, origin: op.origin, adopt: op.adopt || [] }); break;
         case 'translate-command': writeSkillEverywhere({ name: op.name, files: op.files, providers: op.providers, origin: `${op.translator}:${op.source}` }); break;
         case 'promote-skill': case 'accept-both': {
@@ -479,11 +542,16 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
           // other provider. Files the other side customised beyond the baseline are
           // kept only in a forced (chosen) resolution's candidate snapshot.
           const rec = coreReceipt();
-          if (op.force) { for (const provider of op.providers) { const root = providerSkillRoot(provider); if (root && resolve(root, op.name) !== resolve(op.sourceDir)) { const r = skillReceipt(provider); if (existsSync(join(root, op.name))) r.skills[op.name] = { files: readSkill(join(root, op.name)).files, version: record.kitVersion }; else delete r.skills[op.name]; } } if (resolve(coreSkillRoot, op.name) !== resolve(op.sourceDir) && existsSync(join(coreSkillRoot, op.name))) rec.skills[op.name] = { ...rec.skills[op.name], files: readSkill(join(coreSkillRoot, op.name)).files }; persist(); }
+          // A chosen resolution lets the promoted files replace the other copies'
+          // versions of the same files. A file only the losing copy has was never
+          // the bridge's: it stays on disk and out of the receipt.
+          const promotedFiles = readSkill(op.sourceDir).files;
+          const onlyPromoted = files => Object.fromEntries(Object.entries(files).filter(([f]) => f in promotedFiles));
+          if (op.force) { for (const provider of op.providers) { const root = providerSkillRoot(provider); if (root && resolve(root, op.name) !== resolve(op.sourceDir)) { const r = skillReceipt(provider); if (existsSync(join(root, op.name))) r.skills[op.name] = { files: onlyPromoted(readSkill(join(root, op.name)).files), version: record.kitVersion }; else delete r.skills[op.name]; } } if (resolve(coreSkillRoot, op.name) !== resolve(op.sourceDir) && existsSync(join(coreSkillRoot, op.name))) rec.skills[op.name] = { ...rec.skills[op.name], files: onlyPromoted(readSkill(join(coreSkillRoot, op.name)).files) }; persist(); }
           // A copy already byte-identical to the promoted content (an equal
           // two-sided change, or the source itself) is accepted into its receipt
           // rather than reported as customised; it is what is about to be written.
-          const promoted = readSkill(op.sourceDir).files;
+          const promoted = promotedFiles;
           for (const [root, r] of [[coreSkillRoot, rec], ...op.providers.map(x => [providerSkillRoot(x), skillReceipt(x)])]) {
             if (!root || !r.skills[op.name] || !existsSync(join(root, op.name)) || resolve(root, op.name) === resolve(op.sourceDir)) continue;
             const files = readSkill(join(root, op.name)).files;
@@ -520,11 +588,12 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
           if (blocks.length && hash(blocks[0]) !== rec.adapterHash && hash(blocks[0]) !== pending[blockKey]) throw Error(`The bridge block in ${op.instructions} was customised or has no ownership receipt; left unchanged.`);
           if (blocks.length && hash(blocks[0]) !== rec.adapterHash) recovery.adopted.push(blockKey);
           for (const temp of sweepTemps(op.config)) recovery.actions.push(`Removed the unfinished temporary file ${temp}.`);
-          const block = adapterBlock({ manifestPath: p.manifest, kit: record.kit, provider: op.provider, instructions: p.instructions, overlay: join(p.overlays, `${op.provider}.md`), contract: p.contract, skillRoot: op.skillRoot });
+          const block = adapterBlock({ core: p.core, kit: record.kit, provider: op.provider, instructions: p.instructions, overlay: join(p.overlays, `${op.provider}.md`), contract: p.contract });
           Object.assign(rec, { ready: false, host: op.host, os: platform(), config: op.config, instructions: op.instructions, skillRoot: op.skillRoot, overlay: join(p.overlays, `${op.provider}.md`) });
           if (blocks.length === 1 && blocks[0] === block) { rec.ready = true; rec.adapterHash = hash(block); persist(); break; }
-          pending[blockKey] = hash(block); persist();
-          save(op.instructions, blocks.length ? global.replace(blocks[0], () => block) : global + (global.endsWith('\n') || !global ? '' : '\n') + '\n' + block + '\n');
+          const inserted = (global.endsWith('\n') || !global ? '' : '\n') + (global ? '\n' : '') + block + '\n';
+          pending[blockKey] = hash(block); rec.adapterInsert = blocks.length ? rec.adapterInsert || null : inserted; persist();
+          save(op.instructions, blocks.length ? global.replace(blocks[0], () => block) : global + inserted);
           checkpoint(`adapter:${op.provider}`);
           rec.adapterHash = hash(block); rec.ready = true;
           commit([blockKey]); persist();
@@ -549,9 +618,15 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
           const { blocks, ambiguous } = managedBlocks(global);
           const markers = (global.match(/<!-- selr-bridge:(?:begin|end) -->/g) || []).length;
           if (!blocks.length && !markers) { recovery.actions.push(`The bridge block in ${rec.instructions} was already removed; finishing that removal.`); break; }
-          if (ambiguous || hash(blocks[0]) !== rec.adapterHash) throw Error(`The bridge block in ${rec.instructions} is ambiguous or customised; left unchanged.`);
-          const stripped = global.replace(blocks[0], '').replace(/\n{3,}/g, '\n\n').replace(/\n+$/, '\n');
+          const stagedBlock = pending[`${rec.instructions}#selr-bridge-block`];
+          if (ambiguous || (hash(blocks[0]) !== rec.adapterHash && hash(blocks[0]) !== stagedBlock)) throw Error(`The bridge block in ${rec.instructions} is ambiguous or customised; left unchanged.`);
+          // Exactly the text the bridge inserted comes out; the user's bytes around it stay as they were.
+          const inserted = rec.adapterInsert && global.includes(rec.adapterInsert) ? rec.adapterInsert : null;
+          let stripped;
+          if (inserted) stripped = global.replace(inserted, () => '');
+          else { const at = global.indexOf(blocks[0]); stripped = global.slice(0, at).replace(/\n+$/, '\n') + global.slice(at + blocks[0].length).replace(/^\n+/, ''); }
           save(rec.instructions, stripped === '\n' ? '' : stripped);
+          delete pending[`${rec.instructions}#selr-bridge-block`];
           checkpoint(`remove-block:${op.provider}`);
           break;
         }
@@ -565,6 +640,12 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
             else kept.push(path);
           }
           for (const name of Object.keys(manifest.core.skills || {})) retireSkill({ name, skillRoot: coreSkillRoot, receipt: coreReceipt(), persist, kept, transaction: transaction('core') });
+          for (const [dir, rec] of Object.entries(manifest.projects || {})) {
+            if (!existsSync(rec.pointer)) { delete manifest.projects[dir]; continue; }
+            if (current(rec.pointer) === rec.hash) { stageRemovals([rec.pointer]); rmSync(rec.pointer); checkpoint(`uninstall:project:${basename(dir)}`); commitRemovals([rec.pointer]); results.removed.push(rec.pointer); delete manifest.projects[dir]; }
+            else kept.push(rec.pointer);
+          }
+          persist();
           break;
         }
         default: throw Error(`Unknown plan operation ${op.op}; nothing further applied.`);
@@ -573,13 +654,15 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
     // Finish removals a stopped run recorded, and adopt files it wrote that
     // this plan no longer visits: a recorded intent proves they are the bridge's.
     for (const [path, expected] of Object.entries(manifest.pending.removals)) {
-      if (!path.startsWith(home + sep) || !existsSync(path) || lstatSync(path).isSymbolicLink()) { delete manifest.pending.removals[path]; continue; }
+      if (!existsSync(path) || lstatSync(path).isSymbolicLink()) { delete manifest.pending.removals[path]; continue; }
+      try { safePath(path); } catch { recovery.actions.push(`Preserved ${path}: it is now behind a link.`); delete manifest.pending.removals[path]; continue; }
       if (expected && !lstatSync(path).isDirectory() && hash(readFileSync(path)) === expected) { rmSync(path); recovery.actions.push(`Finished removing ${path}, which a stopped run had started to remove.`); }
       else recovery.actions.push(`Preserved ${path} because it changed after the stopped run recorded its removal.`);
       delete manifest.pending.removals[path];
     }
     for (const [path, expected] of Object.entries(pending)) {
       if (path.includes('#') || !existsSync(path) || lstatSync(path).isSymbolicLink() || hash(readFileSync(path)) !== expected) continue;
+      if (path.startsWith(p.handoffs + sep)) { const name = relative(p.handoffs, path).replace(/\.md$/, ''); (manifest.core.handoffs ||= {})[name] ||= { path, hash: expected, provider: 'unknown', createdAt: interrupted?.startedAt || null }; recovery.adopted.push(path); recovery.actions.push(`Recorded the handoff ${path}, written by the stopped run.`); continue; }
       for (const [label, rec] of [['core', { skillRoot: coreSkillRoot, skills: manifest.core.skills }], ...Object.entries(manifest.providers)]) {
         if (!rec.skillRoot || !path.startsWith(resolve(rec.skillRoot) + sep)) continue;
         const [name, ...rest] = relative(rec.skillRoot, path).split(sep);
@@ -588,6 +671,7 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
       }
     }
     if (record.intent === 'uninstall') {
+      delete manifest.pending;
       persist();
       const remaining = Object.keys(manifest.providers).length;
       if (!remaining) { rmSync(p.plans, { recursive: true, force: true }); rmSync(p.manifest, { force: true }); }
@@ -669,7 +753,22 @@ export function verify(options = {}) {
     else if (result.decision !== 'unchanged') check(`shared:${name}`, 'blocked', `${name}: ${result.reason} Run sync to reconcile.`);
     else check(`shared:${name}`, 'confirmed', `${name} is identical in the portable core${Object.keys(sides).length ? ` and ${Object.keys(sides).join(' and ')}` : ''}.`);
   }
-  for (const entry of manifest.nativeImports || []) check(`native-import:${entry.source}->${entry.provider}`, entry.status === 'completed' ? 'confirmed' : entry.status === 'partial' ? 'blocked' : entry.status === 'failed' ? 'failed' : 'unknown', `${entry.translator}: ${entry.status}${entry.reason ? ` (${entry.reason})` : ''}${entry.failed?.length ? `; failed: ${entry.failed.join(', ')}` : ''}. The destination was inspected independently above.`);
+  for (const [dir, rec] of Object.entries(manifest.projects || {})) {
+    if (!existsSync(rec.pointer)) check(`project:${dir}`, 'failed', `${rec.pointer} is missing.`);
+    else if (hash(read(rec.pointer)) !== rec.hash) check(`project:${dir}`, 'blocked', `${rec.pointer} was edited; it is left unchanged.`);
+    else if (!existsSync(join(dir, 'AGENTS.md'))) check(`project:${dir}`, 'failed', `${join(dir, 'AGENTS.md')} is missing, so the pointer has nothing to read.`);
+    else check(`project:${dir}`, 'confirmed', `${dir}: both providers read AGENTS.md (Claude through the CLAUDE.md pointer).`);
+  }
+  for (const entry of manifest.nativeImports || []) {
+    // What the importer claims is checked against the destination itself.
+    const dest = inv.providers[entry.provider];
+    const seen = { instructions: dest.instructions.exists, skills: dest.skills.length > 0, commands: dest.commands.length > 0, subagents: dest.subagents.length > 0, mcp: dest.mcp.length > 0, settings: dest.settings.present, hooks: dest.hooks.present === true, plugins: dest.plugins.present === true };
+    const claimed = entry.imported || [];
+    const unseen = claimed.filter(item => item in seen && !seen[item]);
+    const unverifiable = claimed.filter(item => !(item in seen));
+    const state = entry.status === 'failed' ? 'failed' : unseen.length ? 'failed' : entry.status === 'partial' ? 'blocked' : entry.status === 'completed' ? 'confirmed' : 'unknown';
+    check(`native-import:${entry.source}->${entry.provider}`, state, `${entry.translator}: importer reported ${entry.status}${entry.reason ? ` (${entry.reason})` : ''}${entry.failed?.length ? `; failed: ${entry.failed.join(', ')}` : ''}. Destination inspected: ${claimed.length ? claimed.map(item => `${item} ${seen[item] === undefined ? 'not checkable here' : seen[item] ? 'present' : 'absent'}`).join(', ') : 'nothing claimed'}${unseen.length ? `. Claimed but absent: ${unseen.join(', ')}` : ''}${unverifiable.length ? `. Unknown for: ${unverifiable.join(', ')}` : ''}.`);
+  }
   const conflictsDir = p.conflicts;
   if (existsSync(conflictsDir)) for (const name of readdirSync(conflictsDir).sort()) check(`candidates:${name}`, 'unknown', `Preserved candidate copies for "${name}" remain under ${join(conflictsDir, name)}; delete them when you are sure of the result.`);
   const bad = checks.filter(c => ['failed', 'conflicted', 'blocked'].includes(c.state));

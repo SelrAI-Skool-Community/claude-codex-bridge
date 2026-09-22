@@ -15,6 +15,7 @@
 // Options: --home <dir> --kit <dir> --provider <claude|codex> --host <desktop|cli>
 //   --claude-home <dir> --codex-home <dir> --only a,b --skip a,b
 //   --instructions-from <claude|codex|none> --resolve <name>=<choice> (repeatable)
+//   --project <dir> (repeatable: share that project's AGENTS.md with both providers)
 import { realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -22,11 +23,11 @@ import { apply, inspect, kitVersion, plan, status, verify } from './bridge-engin
 import { createHandoff, listHandoffs } from './bridge-handoff.mjs';
 import { read } from './bridge-files.mjs';
 import { paths } from './bridge-engine.mjs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 
 export function parseArgs(argv) {
   const [command, ...rest] = argv;
-  const options = { resolve: {}, skip: [], only: null, providerHomes: {} };
+  const options = { resolve: {}, skip: [], only: null, providerHomes: {}, projects: [] };
   for (let i = 0; i < rest.length; i++) {
     const name = rest[i], value = rest[i + 1];
     const take = () => { if (value === undefined || value.startsWith('--')) throw Error(`${name} needs a value.`); i++; return value; };
@@ -43,6 +44,7 @@ export function parseArgs(argv) {
       case '--instructions-from': options.instructionsFrom = take(); break;
       case '--resolve': { const [k, v] = take().split('='); if (!k || !v) throw Error('--resolve takes <name>=<claude|codex|core|keep-separate>'); options.resolve[k] = v; break; }
       case '--remove-provider': options.removeProvider = take(); break;
+      case '--project': options.projects.push(resolve(take())); break;
       case '--plan': options.planId = take(); break;
       case '--input': options.input = take(); break;
       case '--name': options.name = take(); break;
@@ -58,10 +60,13 @@ export function parseArgs(argv) {
 
 export function run(argv, env = process.env) {
   const { command, options } = parseArgs(argv);
-  const common = { home: options.home || homedir(), kit: options.kit, providerHomes: { claude: options.providerHomes.claude || (options.home ? undefined : env.CLAUDE_CONFIG_DIR), codex: options.providerHomes.codex || (options.home ? undefined : env.CODEX_HOME) }, env };
+  // An explicit --home is a complete fixture: the shell's CLAUDE_CONFIG_DIR and
+  // CODEX_HOME must not reach into it unless a provider home is named too.
+  const isolated = options.home ? Object.fromEntries(Object.entries(env).filter(([k]) => !['CLAUDE_CONFIG_DIR', 'CODEX_HOME'].includes(k))) : env;
+  const common = { home: options.home || homedir(), kit: options.kit, providerHomes: { claude: options.providerHomes.claude, codex: options.providerHomes.codex }, env: isolated };
   switch (command) {
     case 'inspect': return inspect(common);
-    case 'plan': case 'sync': return plan({ ...common, intent: 'bridge', provider: options.provider, host: options.host || 'cli', only: options.only, skip: options.skip, instructionsFrom: options.instructionsFrom, resolve: options.resolve });
+    case 'plan': case 'sync': return plan({ ...common, intent: 'bridge', provider: options.provider, host: options.host || 'cli', only: options.only, skip: options.skip, instructionsFrom: options.instructionsFrom, resolve: options.resolve, projects: options.projects });
     case 'remove': if (!['claude', 'codex'].includes(options.removeProvider)) throw Error('Say which provider to remove: --remove-provider claude|codex.'); return plan({ ...common, intent: 'remove', removeProvider: options.removeProvider, provider: options.provider, host: options.host || 'cli' });
     case 'uninstall': return plan({ ...common, intent: 'uninstall', provider: options.provider, host: options.host || 'cli' });
     case 'apply': return apply({ home: common.home, planId: options.planId });
@@ -70,7 +75,7 @@ export function run(argv, env = process.env) {
     case 'handoff': {
       if (options.sub === 'create') { if (!options.input) throw Error('handoff create needs --input <json file>.'); return createHandoff({ home: common.home, input: JSON.parse(read(options.input) || 'null'), provider: options.provider, kitVersion: kitVersion(options.kit || join(fileURLToPath(import.meta.url), '../..')) }); }
       if (options.sub === 'list') return { handoffs: listHandoffs({ home: common.home }) };
-      if (options.sub === 'show') { const path = join(paths(common.home).handoffs, `${options.name}.md`); const body = read(path); if (!body) throw Error(`No handoff named "${options.name}".`); return { name: options.name, path, body }; }
+      if (options.sub === 'show') { if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(options.name || '')) throw Error('handoff show needs --name <short lower-case name>.'); const path = join(paths(common.home).handoffs, `${options.name}.md`); const body = read(path); if (!body) throw Error(`No handoff named "${options.name}".`); return { name: options.name, path, body }; }
       throw Error('handoff takes create, list or show.');
     }
     default: throw Error('Commands: inspect, plan, apply, verify, status, sync, remove, uninstall, handoff. See scripts/bridge.mjs for options.');
