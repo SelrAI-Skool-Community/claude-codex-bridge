@@ -39,7 +39,8 @@ differs from the shell's.
    native importer command in their own session; you report it as their step,
    then `verify` reports what arrived.
 6. Done when `verify` returns `healthy: true` and you have told the user to
-   start a new task in each app so the bridge block is read.
+   start a new task in each app so the bridge block is read, and that if
+   Claude Code asks to allow imported instruction files, they allow it.
 
 `noop: true` on a plan means the setup already matches; say so and stop.
 

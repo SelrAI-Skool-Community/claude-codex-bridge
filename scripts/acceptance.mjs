@@ -27,7 +27,7 @@ const os = platform() === 'darwin' ? 'Mac' : platform() === 'win32' ? 'Windows' 
 const appName = p => p === 'claude' ? 'Claude Code' : 'Codex';
 const setupPrompt = readFileSync(join(REPO, 'docs/start/setup.md'), 'utf8').split('## The prompt')[1].trim();
 
-const MARK = { cedar: 'GREETING-CEDAR-7Q', cedarV2: 'GREETING-CEDAR-V2', pine: 'GREETING-PINE-4K', business: 'Cedar Test Gardens' };
+const MARK = { cedar: 'GREETING-CEDAR-7Q', cedarV2: 'GREETING-CEDAR-V2', pine: 'GREETING-PINE-4K', business: 'Harbour Lane Bakery' };
 const skillBody = (name, marker) => `---\nname: ${name}\ndescription: Use when the user asks for the ${name.replace('-', ' ')}.\n---\n\nReply with exactly this text and nothing else: ${marker}\n`;
 const write = (path, body) => { mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, body); };
 const readText = path => existsSync(path) ? readFileSync(path, 'utf8') : '';

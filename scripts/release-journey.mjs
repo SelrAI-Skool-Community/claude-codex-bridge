@@ -52,7 +52,7 @@ try {
   applyPlan('bridge Claude', plan);
   let v = bridge('verify (Claude only)', 'verify');
   expect('Claude-only verify healthy', v.healthy, v.summary);
-  expect('Claude instructions preserved', readText(join(claudeHome, 'CLAUDE.md')).startsWith('Always call me Sam.\n'), 'personal text intact');
+  expect('Claude instructions moved into the portable core', readText(join(home, '.selr/bridge/core/instructions.md')) === 'Always call me Sam.\n' && !readText(join(claudeHome, 'CLAUDE.md')).includes('Always call me Sam.'), 'CLAUDE.md keeps only the block; the text is in the portable instructions');
   // 2. Codex arrives (Codex-first direction is covered by adding it to an existing core and by the tests).
   write(join(codexHome, 'AGENTS.md'), 'Codex personal.\n');
   write(join(codexHome, 'config.toml'), 'model = "gpt-6-astra"\n');
