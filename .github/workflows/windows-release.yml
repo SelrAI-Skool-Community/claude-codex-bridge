@@ -1,0 +1,52 @@
+# Real-machine Windows release evidence: the fixture suite, the release
+# journey and the agent acceptance suite on a GitHub-hosted Windows machine
+# with the same Claude Code and Codex builds recorded on macOS.
+#
+# Sign-in comes from two repository secrets holding access tokens only (no
+# refresh tokens): CCB_CLAUDE_TOKEN and CCB_CODEX_AUTH. Remove them after the
+# run. Trigger by pushing a branch named release-evidence/<anything>.
+name: windows-release
+on:
+  workflow_dispatch:
+    inputs:
+      journey:
+        description: Run the release journey too
+        default: 'true'
+  push:
+    branches: ['release-evidence/**']
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 150
+    env:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CCB_CLAUDE_TOKEN }}
+      CCB_CODEX_AUTH: ${{ secrets.CCB_CODEX_AUTH }}
+      CLAUDE_CODE_GIT_BASH_PATH: C:\Program Files\Git\bin\bash.exe
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install the tested Claude Code and Codex builds
+        run: npm install -g @anthropic-ai/claude-code@2.1.276 @openai/codex@0.155.0
+      - run: claude --version
+      - run: codex --version
+      - name: Fixture suite
+        run: npm test
+      - name: Skill discovery probe
+        run: node scripts/skill-discovery-probe.mjs --out docs/verification/windows-discovery.json
+        continue-on-error: true
+      - name: Release journey
+        run: node scripts/release-journey.mjs --out docs/verification/windows-journey.json
+        continue-on-error: true
+      - name: Agent acceptance
+        run: node scripts/acceptance.mjs --out docs/verification/windows-acceptance.json
+        continue-on-error: true
+      - name: Keep the evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-evidence
+          path: docs/verification/windows-*.json

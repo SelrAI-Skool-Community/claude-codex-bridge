@@ -1,0 +1,15 @@
+{
+  "note": "Answer key for fixtures/sharing/machine-bound. Lives OUTSIDE the fixture directory on purpose, so an agent pointed at the fixture cannot read the answers. A machine-specific reference is not a secret, so the reference itself is recorded here.",
+  "scrub": [],
+  "portability": [
+    { "ruleId": "mcp-server-ref", "path": "SKILL.md", "line": 9, "reference": "mcp__wnd-pin-helper__pin_path" },
+    { "ruleId": "mcp-server-ref", "path": "SKILL.md", "line": 10, "reference": "mcp__file_system__read_file" },
+    { "ruleId": "mcp-server-ref", "path": "SKILL.md", "line": 11, "reference": "mcp__claude_ai_Canva__comment-on-design" },
+    { "ruleId": "mcp-server-ref", "path": "SKILL.md", "line": 12, "reference": "mcp__file_system" },
+    { "ruleId": "windows-user-path", "path": "scripts/render.ps1", "line": 2, "reference": "C:\\Users\\marlo\\Documents\\report-tools\\templates\\report.html" },
+    { "ruleId": "windows-abs-path", "path": "scripts/render.ps1", "line": 3, "reference": "D:\\tools\\ffmpeg\\bin\\ffmpeg.exe" },
+    { "ruleId": "unc-path", "path": "scripts/render.ps1", "line": 4, "reference": "\\\\OFFICE-NAS\\shared\\templates\\logo.png" },
+    { "ruleId": "unix-user-path", "path": "scripts/render.ps1", "line": 5, "reference": "/Users/jesie/projects/tools/helper.sh" },
+    { "ruleId": "unix-tool-path", "path": "scripts/render.ps1", "line": 6, "reference": "/opt/homebrew/bin/pngquant" }
+  ]
+}

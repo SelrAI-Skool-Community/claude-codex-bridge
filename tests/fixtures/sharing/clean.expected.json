@@ -1,0 +1,5 @@
+{
+  "note": "Answer key for fixtures/sharing/clean. Lives OUTSIDE the fixture directory on purpose. This fixture is genuinely clean: any hit or warning against it is a false positive and fails the gate.",
+  "scrub": [],
+  "portability": []
+}

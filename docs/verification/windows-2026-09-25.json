@@ -1,0 +1,476 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "at": "2026-09-25T03:57:11.189Z",
+  "host": "runnervm99s1a",
+  "os": "win32 10.0.26100",
+  "sourceRevision": "ae6cc51849c51e4207db1c75f7d085e2b2cff409",
+  "versions": {
+    "node": "v22.23.2",
+    "claude": "2.1.276 (Claude Code)",
+    "codex": "codex-cli 0.155.0"
+  },
+  "fixture": {
+    "root": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\ccb-journey-DRueF6",
+    "note": "A clean fixture home under the temp folder; the real user home was not changed."
+  },
+  "steps": [
+    {
+      "label": "inspect (Claude only)",
+      "command": "node scripts/bridge.mjs inspect --provider claude --host cli",
+      "exitStatus": 0,
+      "summary": "Claude Code: 1 skills, 0 commands, 0 subagents, 0 MCP servers, 0 private stores left alone. No bridge installed yet. Nothing was changed."
+    },
+    {
+      "label": "plan (Claude only)",
+      "command": "node scripts/bridge.mjs plan --provider claude --host cli",
+      "exitStatus": 0,
+      "summary": [
+        "Claude Code only found. 4 to share, 2 Claude-specific, 0 Codex-specific, 0 translated, 0 unsupported."
+      ],
+      "planId": "253b8dd4ed21cc70",
+      "noop": false
+    },
+    {
+      "label": "bridge Claude (apply 253b8dd4ed21cc70)",
+      "command": "node scripts/bridge.mjs apply --plan 253b8dd4ed21cc70",
+      "exitStatus": 0,
+      "summary": "Applied plan 253b8dd4ed21cc70. Run verify to confirm both providers read the portable core.",
+      "noop": false
+    },
+    {
+      "label": "verify (Claude only)",
+      "command": "node scripts/bridge.mjs verify",
+      "exitStatus": 0,
+      "summary": "All 12 checks confirmed. claude reads the portable core and only its own overlay.",
+      "healthy": true
+    },
+    {
+      "label": "Claude-only verify healthy",
+      "check": true,
+      "state": "confirmed",
+      "detail": "All 12 checks confirmed. claude reads the portable core and only its own overlay."
+    },
+    {
+      "label": "Claude instructions moved into the portable core",
+      "check": true,
+      "state": "confirmed",
+      "detail": "CLAUDE.md keeps only the block; the text is in the portable instructions"
+    },
+    {
+      "label": "plan (add Codex)",
+      "command": "node scripts/bridge.mjs plan --provider codex --host cli",
+      "exitStatus": 0,
+      "summary": [
+        "Claude Code and Codex found. 3 to share (2 already shared), 2 Claude-specific, 3 Codex-specific, 0 translated, 1 unsupported."
+      ],
+      "planId": "5342d34693265372",
+      "noop": false
+    },
+    {
+      "label": "bridge Codex (apply 5342d34693265372)",
+      "command": "node scripts/bridge.mjs apply --plan 5342d34693265372",
+      "exitStatus": 0,
+      "summary": "Applied plan 5342d34693265372. Run verify to confirm both providers read the portable core.",
+      "noop": false
+    },
+    {
+      "label": "verify (both)",
+      "command": "node scripts/bridge.mjs verify",
+      "exitStatus": 0,
+      "summary": "All 20 checks confirmed. Both providers read the same portable core and only their own overlay.",
+      "healthy": true
+    },
+    {
+      "label": "both verify healthy",
+      "check": true,
+      "state": "confirmed",
+      "detail": "All 20 checks confirmed. Both providers read the same portable core and only their own overlay."
+    },
+    {
+      "label": "shared skill reached Codex",
+      "check": true,
+      "state": "confirmed",
+      "detail": "journey-notes identical"
+    },
+    {
+      "label": "Codex skill reached Claude",
+      "check": true,
+      "state": "confirmed",
+      "detail": "journey-drafts identical"
+    },
+    {
+      "label": "plan (repeat)",
+      "command": "node scripts/bridge.mjs plan --provider codex --host cli",
+      "exitStatus": 0,
+      "summary": [
+        "Claude Code and Codex found. 0 to share (3 already shared), 2 Claude-specific, 3 Codex-specific, 0 translated, 0 unsupported.",
+        "Nothing to change: your setup already matches the plan."
+      ],
+      "planId": "06736f994017f7a5",
+      "noop": true
+    },
+    {
+      "label": "repeat is a no-op",
+      "check": true,
+      "state": "confirmed",
+      "detail": "noop"
+    },
+    {
+      "label": "sync (Codex edit)",
+      "command": "node scripts/bridge.mjs sync --provider codex --host cli",
+      "exitStatus": 0,
+      "summary": [
+        "Claude Code and Codex found. 1 to share (3 already shared), 2 Claude-specific, 3 Codex-specific, 0 translated, 0 unsupported."
+      ],
+      "planId": "eb32d0d0b33d60cb",
+      "noop": false
+    },
+    {
+      "label": "sync (apply eb32d0d0b33d60cb)",
+      "command": "node scripts/bridge.mjs apply --plan eb32d0d0b33d60cb",
+      "exitStatus": 0,
+      "summary": "Applied plan eb32d0d0b33d60cb. Run verify to confirm both providers read the portable core.",
+      "noop": false
+    },
+    {
+      "label": "promotion reached Claude",
+      "check": true,
+      "state": "confirmed",
+      "detail": "Claude copy updated"
+    },
+    {
+      "label": "sync (conflict)",
+      "command": "node scripts/bridge.mjs sync --provider claude --host cli",
+      "exitStatus": 0,
+      "summary": [
+        "Claude Code and Codex found. 1 to share (3 already shared), 2 Claude-specific, 3 Codex-specific, 0 translated, 0 unsupported.",
+        "1 item needs your choice before it is written; everything else can be applied now.",
+        "Nothing to change: your setup already matches the plan."
+      ],
+      "planId": "6d31e8935b33b7f6",
+      "noop": true
+    },
+    {
+      "label": "conflict reported, nothing written",
+      "check": true,
+      "state": "confirmed",
+      "detail": "[\"sync:journey-notes\"]"
+    },
+    {
+      "label": "sync (resolve codex)",
+      "command": "node scripts/bridge.mjs sync --provider claude --host cli --resolve journey-notes=codex",
+      "exitStatus": 0,
+      "summary": [
+        "Claude Code and Codex found. 1 to share (3 already shared), 2 Claude-specific, 3 Codex-specific, 0 translated, 0 unsupported."
+      ],
+      "planId": "44144a96b9687a70",
+      "noop": false
+    },
+    {
+      "label": "resolve (apply 44144a96b9687a70)",
+      "command": "node scripts/bridge.mjs apply --plan 44144a96b9687a70",
+      "exitStatus": 0,
+      "summary": "Applied plan 44144a96b9687a70. Run verify to confirm both providers read the portable core.",
+      "noop": false
+    },
+    {
+      "label": "candidates preserved",
+      "check": true,
+      "state": "confirmed",
+      "detail": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\ccb-journey-DRueF6\\home\\.selr\\bridge\\conflicts\\journey-notes\\claude-2026-09-25T03-56-30-385Z, C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\ccb-journey-DRueF6\\home\\.selr\\bridge\\conflicts\\journey-notes\\core-2026-09-25T03-56-30-392Z"
+    },
+    {
+      "label": "chosen version everywhere",
+      "check": true,
+      "state": "confirmed",
+      "detail": "Claude copy now Codex version"
+    },
+    {
+      "label": "sync (before interruption)",
+      "command": "node scripts/bridge.mjs sync --provider codex --host cli",
+      "exitStatus": 0,
+      "summary": [
+        "Claude Code and Codex found. 1 to share (3 already shared), 2 Claude-specific, 3 Codex-specific, 0 translated, 0 unsupported."
+      ],
+      "planId": "4d17cc18306984e6",
+      "noop": false
+    },
+    {
+      "label": "apply killed at claude:skill:journey-notes",
+      "command": "node tests/fixtures/apply-driver.mjs <home> <plan> claude:skill:journey-notes",
+      "signal": null,
+      "boundaries": [
+        "lock",
+        "core:skill-file:journey-notes/SKILL.md",
+        "core:skill:journey-notes",
+        "claude:skill-file:journey-notes/SKILL.md",
+        "claude:skill:journey-notes"
+      ]
+    },
+    {
+      "label": "process died at the boundary",
+      "check": true,
+      "state": "confirmed",
+      "detail": "null 1 claude:skill:journey-notes"
+    },
+    {
+      "label": "verify (interrupted)",
+      "command": "node scripts/bridge.mjs verify",
+      "exitStatus": 0,
+      "summary": "5 checks need attention: receipt, lock, claude:skill:journey-notes, codex:skill:journey-notes, shared:journey-notes.",
+      "healthy": false
+    },
+    {
+      "label": "interrupted state reported",
+      "check": true,
+      "state": "confirmed",
+      "detail": "5 checks need attention: receipt, lock, claude:skill:journey-notes, codex:skill:journey-notes, shared:journey-notes."
+    },
+    {
+      "label": "plan (recover)",
+      "command": "node scripts/bridge.mjs plan --provider codex --host cli",
+      "exitStatus": 0,
+      "summary": [
+        "Claude Code and Codex found. 1 to share (3 already shared), 2 Claude-specific, 3 Codex-specific, 0 translated, 0 unsupported."
+      ],
+      "planId": "4d17cc18306984e6",
+      "noop": false
+    },
+    {
+      "label": "recover (apply 4d17cc18306984e6)",
+      "command": "node scripts/bridge.mjs apply --plan 4d17cc18306984e6",
+      "exitStatus": 0,
+      "summary": "An earlier operation did not finish; this run continued it from its saved progress. Applied plan 4d17cc18306984e6. Run verify to confirm both providers read the portable core.",
+      "noop": false
+    },
+    {
+      "label": "recovery reported",
+      "check": true,
+      "state": "confirmed",
+      "detail": "{\"actions\":[\"Removed the operation lock left by a bridge (plan 4d17cc18306984e6) that stopped (process 5696, started 2026-09-25T03:56:30.661Z).\",\"Continued the bridge started 2026-09-25T03:56:30.665Z (plan 4d17cc18306984e6) that did not finish.\",\"Recorded claude ownership of C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\ccb-journey-DRueF6\\\\home\\\\.claude\\\\skills\\\\journey-notes\\\\SKILL.md, written by the stopped run.\"],\"adopted\":[\"C:\\\\Users\\\\RUNNER~1\\\\AppData\\\\Local\\\\Temp\\\\ccb-journey-DRueF6\\\\home\\\\.claude\\\\skills\\\\journey-notes\\\\SKILL.md\"],\"summary\":\"Recovery: an earlier operation stopped part-way and this run continued it from the progress saved in the receipt; 1 file the earlier run had already written was kept as the bridge's own rather than treated as customised; the lock left by the stopped run was removed. Nothing was installed twice and nothing you changed was overwritten.\"}"
+    },
+    {
+      "label": "verify (recovered)",
+      "command": "node scripts/bridge.mjs verify",
+      "exitStatus": 0,
+      "summary": "All 21 checks confirmed. Both providers read the same portable core and only their own overlay.",
+      "healthy": true
+    },
+    {
+      "label": "recovered verify healthy",
+      "check": true,
+      "state": "confirmed",
+      "detail": "All 21 checks confirmed. Both providers read the same portable core and only their own overlay."
+    },
+    {
+      "label": "recovered content everywhere",
+      "check": true,
+      "state": "confirmed",
+      "detail": "Claude copy updated"
+    },
+    {
+      "label": "knowledge saved",
+      "check": true,
+      "state": "confirmed",
+      "detail": ""
+    },
+    {
+      "label": "handoff create",
+      "command": "node scripts/bridge.mjs handoff create --input C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\ccb-journey-DRueF6\\handoff.json --provider claude",
+      "exitStatus": 0,
+      "summary": "Saved C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\ccb-journey-DRueF6\\home\\.selr\\bridge\\core\\handoffs\\probe.md. The other provider reads it as project context at the start of its next task."
+    },
+    {
+      "label": "handoff saved",
+      "check": true,
+      "state": "confirmed",
+      "detail": "Saved C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\ccb-journey-DRueF6\\home\\.selr\\bridge\\core\\handoffs\\probe.md. The other provider reads it as project context at the start of its next task."
+    },
+    {
+      "label": "fresh claude session",
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id 6fcc50bb-4939-4589-8d3a-2ad79cd4fa8a <prompt on stdin>",
+      "exitStatus": 0,
+      "state": "confirmed",
+      "observed": {
+        "knowledge": true,
+        "overlay": true,
+        "otherOverlay": false,
+        "handoff": true
+      },
+      "output": "bridge-probe-7Q4\nOverlay marker: OVERLAY-CLAUDE-READ\nProve that a fresh session reads the handoff."
+    },
+    {
+      "label": "fresh codex session",
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\ccb-journey-DRueF6\\home - <prompt on stdin>",
+      "exitStatus": 0,
+      "state": "confirmed",
+      "observed": {
+        "knowledge": true,
+        "overlay": true,
+        "otherOverlay": false,
+        "handoff": true
+      },
+      "output": "bridge-probe-7Q4\nOverlay marker: OVERLAY-CODEX-READ\nProve that a fresh session reads the handoff."
+    },
+    {
+      "label": "fresh sessions read the core, their own overlay and the handoff",
+      "check": true,
+      "state": "confirmed",
+      "detail": "claude: confirmed {\"knowledge\":true,\"overlay\":true,\"otherOverlay\":false,\"handoff\":true}; codex: confirmed {\"knowledge\":true,\"overlay\":true,\"otherOverlay\":false,\"handoff\":true}"
+    },
+    {
+      "label": "remove Codex (plan)",
+      "command": "node scripts/bridge.mjs remove --remove-provider codex",
+      "exitStatus": 0,
+      "summary": [
+        "Remove codex from the bridge, keeping everything you changed."
+      ],
+      "planId": "27b5463cacbf17af",
+      "noop": false
+    },
+    {
+      "label": "remove Codex (apply 27b5463cacbf17af)",
+      "command": "node scripts/bridge.mjs apply --plan 27b5463cacbf17af",
+      "exitStatus": 0,
+      "summary": "Applied plan 27b5463cacbf17af. Run verify to confirm both providers read the portable core.",
+      "noop": false
+    },
+    {
+      "label": "Codex block gone, personal text exact",
+      "check": true,
+      "state": "confirmed",
+      "detail": "Codex personal.\n"
+    },
+    {
+      "label": "verify (Codex removed)",
+      "command": "node scripts/bridge.mjs verify",
+      "exitStatus": 0,
+      "summary": "All 15 checks confirmed. claude reads the portable core and only its own overlay.",
+      "healthy": true
+    },
+    {
+      "label": "Claude still healthy",
+      "check": true,
+      "state": "confirmed",
+      "detail": "verify"
+    },
+    {
+      "label": "knowledge survives removal",
+      "check": true,
+      "state": "confirmed",
+      "detail": "probe value present"
+    },
+    {
+      "label": "re-add Codex (plan)",
+      "command": "node scripts/bridge.mjs plan --provider codex --host cli",
+      "exitStatus": 0,
+      "summary": [
+        "Claude Code and Codex found. 5 to share (3 already shared), 2 Claude-specific, 4 Codex-specific, 0 translated, 5 unsupported."
+      ],
+      "planId": "b776a605a05e1819",
+      "noop": false
+    },
+    {
+      "label": "re-add Codex (apply b776a605a05e1819)",
+      "command": "node scripts/bridge.mjs apply --plan b776a605a05e1819",
+      "exitStatus": 0,
+      "summary": "Applied plan b776a605a05e1819. Run verify to confirm both providers read the portable core.",
+      "noop": false
+    },
+    {
+      "label": "verify (Codex re-added)",
+      "command": "node scripts/bridge.mjs verify",
+      "exitStatus": 0,
+      "summary": "All 21 checks confirmed. Both providers read the same portable core and only their own overlay.",
+      "healthy": true
+    },
+    {
+      "label": "re-added Codex healthy",
+      "check": true,
+      "state": "confirmed",
+      "detail": "verify"
+    },
+    {
+      "label": "uninstall (plan)",
+      "command": "node scripts/bridge.mjs uninstall",
+      "exitStatus": 0,
+      "summary": [
+        "Remove claude from the bridge, keeping everything you changed.",
+        "Remove codex from the bridge, keeping everything you changed.",
+        "Remove the bridge-owned files in the portable core that are unchanged. Your portable instructions, shared knowledge, handoffs and any customised file stay."
+      ],
+      "planId": "c6818a3bb4a1f635",
+      "noop": false
+    },
+    {
+      "label": "uninstall (apply c6818a3bb4a1f635)",
+      "command": "node scripts/bridge.mjs apply --plan c6818a3bb4a1f635",
+      "exitStatus": 0,
+      "summary": "The bridge is uninstalled. Your portable instructions, shared knowledge, handoffs and every customised file remain in place."
+    },
+    {
+      "label": "receipt gone",
+      "check": true,
+      "state": "confirmed",
+      "detail": "manifest removed"
+    },
+    {
+      "label": "personal instructions exact after uninstall",
+      "check": true,
+      "state": "confirmed",
+      "detail": "both files"
+    },
+    {
+      "label": "knowledge, handoff and customised overlays remain",
+      "check": true,
+      "state": "confirmed",
+      "detail": "user assets kept"
+    }
+  ],
+  "freshSession": {
+    "schema": 1,
+    "at": "2026-09-25T03:57:09.758Z",
+    "os": "win32 10.0.26100",
+    "versions": {
+      "claude": "2.1.276 (Claude Code)",
+      "codex": "codex-cli 0.155.0",
+      "node": "v22.23.2"
+    },
+    "prompt": "Answer with exactly three lines and nothing else. Follow your global instructions first. Line 1: the value of the shared knowledge entry with key probe-word. Line 2: the line in the overlay you read that starts with \"Overlay marker:\". Line 3: the text under \"Purpose\" in the handoff named probe.",
+    "results": [
+      {
+        "provider": "claude",
+        "state": "confirmed",
+        "seconds": 10,
+        "command": "claude -p --output-format text --dangerously-skip-permissions --session-id 6fcc50bb-4939-4589-8d3a-2ad79cd4fa8a <prompt on stdin>",
+        "exitStatus": 0,
+        "observed": {
+          "knowledge": true,
+          "overlay": true,
+          "otherOverlay": false,
+          "handoff": true
+        },
+        "output": "bridge-probe-7Q4\nOverlay marker: OVERLAY-CLAUDE-READ\nProve that a fresh session reads the handoff.",
+        "stderr": ""
+      },
+      {
+        "provider": "codex",
+        "state": "confirmed",
+        "seconds": 28,
+        "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\ccb-journey-DRueF6\\home - <prompt on stdin>",
+        "exitStatus": 0,
+        "observed": {
+          "knowledge": true,
+          "overlay": true,
+          "otherOverlay": false,
+          "handoff": true
+        },
+        "output": "bridge-probe-7Q4\nOverlay marker: OVERLAY-CODEX-READ\nProve that a fresh session reads the handoff.",
+        "stderr": ""
+      }
+    ],
+    "healthy": true
+  },
+  "platformNote": "Recorded on win32; each platform needs its own record (docs/verification/README.md)."
+}

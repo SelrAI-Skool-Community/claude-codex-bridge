@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "note": "Every module extracted or vendored from another Selr product, with the upstream revision it came from. `unchanged` means byte-identical to upstream; `adapted` means the behaviour was kept and the listed changes made. tests/lineage.test.mjs enforces the unchanged entries by checksum.",
+  "sources": {
+    "claude-workshop-kit": { "repository": "https://github.com/selrai-assets/claude-workshop-kit", "revision": "563a8746d4d1d4e0b6e0e59dfd80eb257728a47e", "inspected": "2026-09-22" },
+    "claude-sync": { "repository": "https://github.com/selrai-company/github-team-base-org", "revision": "5aa59e30391f7a5ff070dd9378032493760cbc4d", "inspected": "2026-09-22" }
+  },
+  "ports": [
+    { "source": "claude-workshop-kit", "original": "scripts/workshop-files.mjs", "local": "scripts/bridge-files.mjs", "status": "adapted", "changes": ["lock directory renamed install.lock to operation.lock and acquireSetupLock to acquireLock", "Workshop-only isKit download test dropped", "error wording says bridge operation instead of setup"] },
+    { "source": "claude-workshop-kit", "original": "scripts/workshop-memory.mjs", "local": "scripts/bridge-memory.mjs", "status": "adapted", "changes": ["header comment and usage program name only; every rule is verbatim"] },
+    { "source": "claude-workshop-kit", "original": "scripts/workshop-skills.mjs", "local": "scripts/bridge-skills.mjs", "status": "adapted", "changes": ["installSkill takes a `source` directory instead of `<kit>/skills/<name>`", "a receipt entry keeps extra fields (the bridge stores the reconciliation baseline beside the owned files)", "attendee wording generalised to user"] },
+    { "source": "claude-workshop-kit", "original": "scripts/install-workshop.mjs (install, installProvider: pending intents, adoption, lock, checkpoint seam, adapter block rules, removal intents)", "local": "scripts/bridge-engine.mjs (apply)", "status": "adapted", "changes": ["operations come from an immutable plan instead of a fixed installer sequence", "no onboarding, discovery, connections, legacy migration or bundled library", "markers renamed selr-kit to selr-bridge"] },
+    { "source": "claude-workshop-kit", "original": "scripts/uninstall-workshop.mjs", "local": "scripts/bridge-engine.mjs (remove-block, retire-provider-skill, forget-provider, uninstall-core operations)", "status": "adapted", "changes": ["runs as plan operations under the same lock and pending-intent recovery as every other mutation"] },
+    { "source": "claude-workshop-kit", "original": "scripts/install-workshop.mjs (Claude CLAUDE.md, Codex AGENTS.md / AGENTS.override.md, skill roots)", "local": "scripts/bridge-adapters.mjs", "status": "adapted", "changes": ["read-only discovery of skills, commands, subagents, hooks, plugins, settings, MCP metadata, private stores and credentials added"] },
+    { "source": "claude-workshop-kit", "original": "my-assistant/routing/claude.md, my-assistant/routing/codex.md", "local": "core/overlays/claude.md, core/overlays/codex.md", "status": "adapted", "changes": ["Workshop-specific delegation wording removed; the routing policy itself is kept"] },
+    { "source": "claude-workshop-kit", "original": "my-assistant/instructions.md (Shared knowledge section)", "local": "core/knowledge-contract.md", "status": "adapted", "changes": ["onboarding, connections, discovery and browser sections excluded", "handoff procedure added"] },
+    { "source": "claude-workshop-kit", "original": "scripts/test-workshop-install.mjs, scripts/test-workshop-recovery.mjs", "local": "tests/workflow.test.mjs, tests/knowledge.test.mjs, tests/removal.test.mjs, tests/recovery.test.mjs, tests/safety.test.mjs", "status": "adapted", "changes": ["equivalent scenarios driven through inspect → plan → apply → verify instead of the installer command line"] },
+    { "source": "claude-sync", "original": "scripts/scrub.mjs", "local": "scripts/scrub.mjs", "status": "unchanged", "sha256": "cf466a181ca13a52095be3e0b2d9020d6fa862a3a9d325e099642c6fec6e80a9" },
+    { "source": "claude-sync", "original": "scripts/portability.mjs", "local": "scripts/portability.mjs", "status": "unchanged", "sha256": "9aaf40d1e8dc95e0009750f94d7c478d2fa507c34cc1d5f4ff427708e31c1202" },
+    { "source": "claude-sync", "original": "tests/fixtures/sharing/**", "local": "tests/fixtures/sharing/**", "status": "unchanged" },
+    { "source": "claude-sync", "original": "tests/run-tests.mjs (scrub and portability sections)", "local": "tests/sharing.test.mjs", "status": "adapted", "changes": ["calls scrubFiles and checkPortability directly instead of the Claude Sync engine's op envelope; outcome wording checks that belonged to that envelope are not carried"] }
+  ]
+}

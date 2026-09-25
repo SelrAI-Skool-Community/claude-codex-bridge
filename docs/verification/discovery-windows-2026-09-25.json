@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "at": "2026-09-25T03:56:27.652Z",
+  "host": "runnervm99s1a",
+  "os": "win32 10.0.26100",
+  "versions": {
+    "claude": "2.1.276 (Claude Code)",
+    "codex": "codex-cli 0.155.0"
+  },
+  "results": {
+    "claude": {
+      "lists": {
+        "claudeRoot": true,
+        "codexRoot": false,
+        "agentsRoot": false,
+        "realProfileAgentsRoot": false
+      },
+      "usesManagedRoot": true,
+      "listing": "probe-claude-root\ndataviz\nupdate-config\nkeybindings-help\ncode-review\nsimplify\nfewer-permission-prompts\nloop\nschedule\nclaude-api\nworkflow-authoring\nrun\ninit\nsecurity-review",
+      "useReply": "MARK-CLAUDE-ROOT",
+      "status": [
+        0,
+        0
+      ],
+      "stderr": ""
+    },
+    "codex": {
+      "lists": {
+        "claudeRoot": false,
+        "codexRoot": true,
+        "agentsRoot": false,
+        "realProfileAgentsRoot": true
+      },
+      "usesManagedRoot": true,
+      "listing": "imagegen\nopenai-docs\nplugin-creator\nskill-creator\nskill-installer\nprobe-codex-root\nprobe-real-profile",
+      "useReply": "MARK-AGENTS-ROOT",
+      "status": [
+        0,
+        0
+      ],
+      "stderr": ""
+    }
+  },
+  "expected": {
+    "claude": "lists the Claude root only and uses it",
+    "codex": "lists the Codex root and the agents root, and uses the agents root"
+  },
+  "status": "passed"
+}
