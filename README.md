@@ -21,14 +21,17 @@ What stays private: credentials, sign-in state, private automatic memory, chats 
 npm test          # fixture-driven tests through inspect → plan → apply → verify
 npm run check     # syntax check every script
 npm run lineage   # verify vendored files against their pins
-npm run journey   # real-machine journey with the installed Claude Code and Codex builds
+npm run journey     # engine lifecycle with the installed Claude Code and Codex builds
+npm run acceptance  # the member journey driven through real agents
+npm run discovery   # which skill folders each installed app loads
+npm run rehearse    # the lifecycle on a copy of your own setup (counts only)
 ```
 
 Engine command line: `node scripts/bridge.mjs inspect | plan | apply --plan <id> | verify | status | sync | remove | uninstall | handoff`. Each prints one JSON document with a plain-language summary.
 
 ## Status
 
-Engine, skill, tests and macOS release evidence are in place. The repository stays private until the Windows real-machine journey is recorded (see `docs/verification/README.md`).
+Engine, skill and tests are in place. The release journey and the agent acceptance suite pass on macOS and on a GitHub-hosted Windows machine (see `docs/verification/README.md`). Before a Skool launch: run the desktop checklist on both platforms, merge, and open member access to this repository.
 
 ## Product records
 
