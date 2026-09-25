@@ -910,6 +910,7 @@ export function status(options = {}) {
   report.mcpInventoried = inventoried.length;
   for (const it of classify(inv)) {
     if (it.kind === 'mcp' && it.disposition === 'translated' && inventoried.some(s => s.provider === it.metadata.provider && s.name === it.metadata.name)) continue;
+    if (it.collision === 'linked') { report.shared.push(it.name); continue; }
     if (it.kind === 'instruction-block' || it.id === 'instructions:portable' || it.id.startsWith('move-instructions:') || it.kind === 'native-import' || it.kind === 'relocate') continue;
     if (it.disposition === 'unsupported') report.unsupported.push({ name: it.name, kind: it.kind, reason: it.reason });
     else if (it.disposition.endsWith('-only')) report.providerSpecific.push({ name: it.name, kind: it.kind, provider: it.disposition.replace('-only', ''), reason: it.reason });

@@ -258,6 +258,7 @@ test('skills both apps already link to the same folder are reported as shared an
     B.apply(fx, p.id);
     const s = B.status(fx);
     assert.equal(s.changed.filter(c => c.kind === 'mcp').length, 0, 'an inventoried server is not waiting for sync'); assert.equal(s.mcpInventoried, 1);
+    assert.ok(s.shared.includes('linked') && !s.changed.some(c => c.name === 'linked'), 'a link-shared skill is in step');
     p = B.plan(fx, { forceShare: ['flagged'] });
     assert.equal(item(p, 'skill:flagged').disposition, 'shared');
     B.apply(fx, p.id);

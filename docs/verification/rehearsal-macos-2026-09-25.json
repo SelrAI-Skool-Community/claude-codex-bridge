@@ -1,0 +1,138 @@
+{
+  "schema": 1,
+  "at": "2026-09-25T03:28:39.731Z",
+  "host": "Mac.mymodem",
+  "os": "darwin 25.6.0",
+  "sourceRevision": "fb15b63e44d54fe738df389e81fc5c456e48e536",
+  "steps": [
+    {
+      "label": "inspect",
+      "ms": 356
+    },
+    {
+      "label": "plan",
+      "ms": 3576
+    },
+    {
+      "label": "plan with a seed choice",
+      "ms": 3597
+    },
+    {
+      "label": "apply",
+      "ms": 80
+    },
+    {
+      "label": "remove codex",
+      "ms": 14
+    },
+    {
+      "label": "re-add codex",
+      "ms": 21
+    },
+    {
+      "label": "uninstall",
+      "ms": 37
+    }
+  ],
+  "checks": [
+    {
+      "label": "verify is healthy after the first apply",
+      "state": "confirmed",
+      "detail": ""
+    },
+    {
+      "label": "a repeat plan is a no-op",
+      "state": "confirmed",
+      "detail": ""
+    },
+    {
+      "label": "no MCP secret value appears in any plan, receipt, core file or report",
+      "state": "confirmed",
+      "detail": "0 of 2 values found"
+    },
+    {
+      "label": "removing Codex leaves AGENTS.md as it was",
+      "state": "confirmed",
+      "detail": "differs"
+    },
+    {
+      "label": "Claude stays healthy after Codex is removed",
+      "state": "confirmed",
+      "detail": "All 14 checks confirmed. claude reads the portable core and only its own overlay."
+    },
+    {
+      "label": "re-adding Codex is healthy",
+      "state": "confirmed",
+      "detail": "All 20 checks confirmed. Both providers read the same portable core and only their own overlay."
+    },
+    {
+      "label": "uninstall puts CLAUDE.md back to the original text",
+      "state": "confirmed",
+      "detail": "differs"
+    },
+    {
+      "label": "uninstall leaves AGENTS.md as it was",
+      "state": "confirmed",
+      "detail": "differs"
+    },
+    {
+      "label": "the real home is byte-identical afterwards",
+      "state": "confirmed",
+      "detail": "changed"
+    }
+  ],
+  "shape": {
+    "links": 74,
+    "secretValuesTracked": 2,
+    "claude": {
+      "skills": 45,
+      "commands": 0,
+      "subagents": 3,
+      "mcp": 7
+    },
+    "codex": {
+      "skills": 68,
+      "prompts": 0,
+      "subagents": 3,
+      "mcp": 10
+    }
+  },
+  "plan": {
+    "dispositions": {
+      "shared": 37,
+      "claude-only": 35,
+      "codex-only": 11,
+      "translated": 17,
+      "unsupported": 9
+    },
+    "conflicts": 3,
+    "conflictKinds": [
+      "skill"
+    ],
+    "operations": 12,
+    "operationKinds": {
+      "write-core-file": 5,
+      "seed-instructions": 1,
+      "move-instructions": 1,
+      "share-skill": 3,
+      "adapter": 2
+    },
+    "userSteps": 21,
+    "seedChoiceNeeded": true
+  },
+  "apply": {
+    "preserved": 0,
+    "removed": 0,
+    "candidates": 0
+  },
+  "verifyChecks": 20,
+  "status": {
+    "shared": 3,
+    "changed": 29,
+    "conflicted": 3,
+    "providerSpecific": 45,
+    "unsupported": 7,
+    "unhealthy": 0
+  },
+  "status_": "passed"
+}

@@ -1,0 +1,749 @@
+{
+  "schema": 1,
+  "status": "failed",
+  "started": "2026-09-25T03:15:52.212Z",
+  "finished": "2026-09-25T03:27:44.954Z",
+  "host": "Mac.mymodem",
+  "os": "darwin 25.6.0",
+  "sourceRevision": "fb15b63e44d54fe738df389e81fc5c456e48e536",
+  "versions": {
+    "node": "v24.21.0",
+    "claude": "2.1.282 (Claude Code)",
+    "codex": "codex-cli 0.157.0"
+  },
+  "fixture": "A fresh fixture home per scenario in the temp folder; the kit is cloned into it at the path the setup prompt uses.",
+  "checks": 45,
+  "failures": 12,
+  "steps": [
+    {
+      "scenario": "claude-first",
+      "step": "claude: paste the setup prompt",
+      "provider": "claude",
+      "prompt": "I'm using Claude Code in a terminal on Mac.\n\nI am setting up (or updating) the Claude + Codex Bridge by Selr AI.\n\nDo these steps one at a time, telling me what you are doing in plain English.\nDecide w… (2177 characters)",
+      "reply": "Here's the plan (id: **f383af089ef4f058**). Since Codex isn't installed here, this only sets up the Claude side of the bridge:\n\n**Shared (moved into the portable core, readable by both apps in future):**\n- Your CLAUDE.md instructions (\"My business is Harbour Lane Bakery. Call me Sam.\") — the original file stays, but the actual text moves into the shared portable instructions; a small pointer block replaces it in CLAUDE.md\n- Your `cedar-greeting` skill\n- The `claude-codex-bridge` skill itself (so you can run the bridge from either app later)\n\n**Claude-only:**\n- A small managed block added to `~/.claude/CLAUDE.md` that points Claude Code at the portable instructions, its Claude-specific overlay, and the shared knowledge contract\n\n**Left alone (unsupported, never touched):**\n- Claude transcripts (`.claude/projects`)\n- Claude session data (`.claude/sessions`)\n\nNo conflicts, no extra steps needed from you. Do you approve applying this plan?",
+      "status": 0,
+      "error": null,
+      "seconds": 22,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id 2078a193-4612-437b-ba44-0f7cfbc88189 <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "claude: approval 1",
+      "provider": "claude",
+      "prompt": "Yes, I approve the plan you showed me. Seed the portable instructions from my Claude instructions. Apply it, verify it, and tell me the result.",
+      "reply": "**Done — the bridge is healthy.** All 12 checks confirmed:\n\n- Your instructions (\"My business is Harbour Lane Bakery. Call me Sam.\") are now in the shared portable core, and Claude Code reads them from there plus its own Claude-specific overlay\n- Both skills (`cedar-greeting`, `claude-codex-bridge`) are shared and identical between the portable core and Claude's skill folder\n- Everything else (transcripts, session data) was left untouched as expected\n\nTo check it's live, start a **new task** in Claude Code and ask: **\"What does the bridge give you?\"** You should get an answer naming the portable instructions, Claude's overlay, and the shared knowledge store. If Claude Code prompts you to allow an imported instruction file, go ahead and allow it.\n\nCodex wasn't found on this machine, so only the Claude side was set up — if you install Codex later, re-run this same setup and it'll pick up from here.",
+      "status": 0,
+      "error": null,
+      "seconds": 8,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --resume 2078a193-4612-437b-ba44-0f7cfbc88189 <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "claude setup leaves the bridge healthy",
+      "state": "confirmed",
+      "detail": "All 12 checks confirmed. claude reads the portable core and only its own overlay."
+    },
+    {
+      "scenario": "claude-first",
+      "check": "claude is bridged",
+      "state": "confirmed",
+      "detail": "[\"claude\"]"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "Codex was not touched while only Claude was set up",
+      "state": "confirmed",
+      "detail": "a .codex folder appeared"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "codex: paste the setup prompt",
+      "provider": "codex",
+      "prompt": "I'm using Codex in a terminal on Mac.\n\nI am setting up (or updating) the Claude + Codex Bridge by Selr AI.\n\nDo these steps one at a time, telling me what you are doing in plain English.\nDecide whether… (2171 characters)",
+      "reply": "Plan **`60d62014f337949b`** is ready. No conflicts.\n\n- **Shared:** Share `pine-greeting` with Claude; add existing shared `cedar-greeting` and `claude-codex-bridge` skills to Codex.\n- **Claude-only:** Keep its bridge instruction block.\n- **Codex-only:** Add its bridge block and overlay, preserve existing instructions and plugins, and move `pine-greeting` to `~/.agents/skills`.\n- **Translated:** Optional user step: run `/import` in Codex. The engine reports support as unconfirmed until tried.\n- **Unsupported:** Claude transcripts and session data; Codex sessions and cache remain private and are never read or copied. Codex credentials remain untouched; each app needs its own sign-in.\n\nDo you approve plan **`60d62014f337949b`**?\n\nThe [bridge skill](/private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-claude-first-MG6FQi/home/.selr/claude-codex-bridge/skills/claude-codex-bridge/SKILL.md) explicitly says, “Ask for approval of the plan by its `id`.” After approval, I’ll apply this exact plan and verify it.",
+      "status": 0,
+      "error": null,
+      "seconds": 55,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-claude-first-MG6FQi/home/work - <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "codex: approval 1",
+      "provider": "codex",
+      "prompt": "Yes, I approve the plan you showed me. Keep my existing Codex instructions as Codex-only. Apply it, verify it, and tell me the result.",
+      "reply": "Applied plan `60d62014f337949b`. **All 20 checks passed; the bridge is healthy.** Your existing Codex instructions remain Codex-only.\n\nBoth apps share three skills and the portable core, and each reads its own overlay. The shared knowledge store is currently empty. Optional `/import` was not run.\n\nStart a new task in each app and ask: **“What does the bridge give you?”** Each should name the portable instructions, its own overlay, and the shared knowledge store. If Claude Code asks to allow imported instruction files, allow them.",
+      "status": 0,
+      "error": null,
+      "seconds": 28,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> resume 01a0d690-65ec-7171-9570-514d2a4648e7 - <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "codex setup leaves the bridge healthy",
+      "state": "confirmed",
+      "detail": "All 20 checks confirmed. Both providers read the same portable core and only their own overlay."
+    },
+    {
+      "scenario": "claude-first",
+      "check": "codex is bridged",
+      "state": "confirmed",
+      "detail": "[\"claude\",\"codex\"]"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "the old Codex skills folder no longer duplicates the shared pine skill",
+      "state": "confirmed",
+      "detail": "still present"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "claude turn",
+      "provider": "claude",
+      "prompt": "What is the name of my business? Answer in one short sentence.",
+      "reply": "Your business is Harbour Lane Bakery.",
+      "status": 0,
+      "error": null,
+      "seconds": 4,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id 78d1a6a4-747c-43c8-bebb-992a7cb59b23 <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "claude: knows the business from the portable instructions",
+      "state": "confirmed",
+      "detail": "Your business is Harbour Lane Bakery."
+    },
+    {
+      "scenario": "claude-first",
+      "step": "claude turn",
+      "provider": "claude",
+      "prompt": "Give me the cedar greeting.",
+      "reply": "GREETING-CEDAR-7Q",
+      "status": 0,
+      "error": null,
+      "seconds": 5,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id 26fab3cf-8794-403a-9c0a-171ba9f3672f <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "claude: uses the shared cedar skill",
+      "state": "confirmed",
+      "detail": "GREETING-CEDAR-7Q"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "claude turn",
+      "provider": "claude",
+      "prompt": "Give me the pine greeting.",
+      "reply": "GREETING-PINE-4K",
+      "status": 0,
+      "error": null,
+      "seconds": 4,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id c3e3e3d3-ff8e-48ff-bf50-284c67b93a11 <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "claude: uses the shared pine skill",
+      "state": "confirmed",
+      "detail": "GREETING-PINE-4K"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "codex turn",
+      "provider": "codex",
+      "prompt": "What is the name of my business? Answer in one short sentence.",
+      "reply": "Your business is Harbour Lane Bakery.",
+      "status": 0,
+      "error": null,
+      "seconds": 17,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-claude-first-MG6FQi/home/work - <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "codex: knows the business from the portable instructions",
+      "state": "confirmed",
+      "detail": "Your business is Harbour Lane Bakery."
+    },
+    {
+      "scenario": "claude-first",
+      "step": "codex turn",
+      "provider": "codex",
+      "prompt": "Give me the cedar greeting.",
+      "reply": "GREETING-CEDAR-7Q",
+      "status": 0,
+      "error": null,
+      "seconds": 16,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-claude-first-MG6FQi/home/work - <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "codex: uses the shared cedar skill",
+      "state": "confirmed",
+      "detail": "GREETING-CEDAR-7Q"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "codex turn",
+      "provider": "codex",
+      "prompt": "Give me the pine greeting.",
+      "reply": "GREETING-PINE-4K",
+      "status": 0,
+      "error": null,
+      "seconds": 28,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-claude-first-MG6FQi/home/work - <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "codex: uses the shared pine skill",
+      "state": "confirmed",
+      "detail": "GREETING-PINE-4K"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "codex: save knowledge",
+      "provider": "codex",
+      "prompt": "Please remember this for both apps: our delivery day is Thursday.",
+      "reply": "Remembered for both apps, Sam: Harbour Lane Bakery’s delivery day is Thursday.",
+      "status": 0,
+      "error": null,
+      "seconds": 21,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-claude-first-MG6FQi/home/work - <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "codex saved the delivery day to shared knowledge",
+      "state": "confirmed",
+      "detail": "{\n  \"schema\": 1,\n  \"entries\": {\n    \"delivery-day\": {\n      \"value\": \"Harbour Lane Bakery’s delivery day is Thursday.\",\n      \"provider\": \"codex\",\n      \"category\": \"fact\",\n      \"revision\": 1,\n      \"updatedAt\": \"2026-09-25T03:19:15.542Z\"\n    }\n  }\n}\n"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "claude turn",
+      "provider": "claude",
+      "prompt": "When is our delivery day? Answer with one word.",
+      "reply": "Thursday.",
+      "status": 0,
+      "error": null,
+      "seconds": 10,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id dd203d5c-f621-49a7-93f8-9c8c7dc815dc <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "claude: reads knowledge Codex saved",
+      "state": "confirmed",
+      "detail": "Thursday."
+    },
+    {
+      "scenario": "claude-first",
+      "step": "claude: save knowledge",
+      "provider": "claude",
+      "prompt": "Please remember this for both apps: our brand colour is teal.",
+      "reply": "Saved: key `brand-colour` → \"Harbour Lane Bakery's brand colour is teal.\" Both Claude and Codex will read this going forward.",
+      "status": 0,
+      "error": null,
+      "seconds": 8,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id 53524248-18ad-4e98-a42d-e48d82aac93b <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "claude saved the brand colour to shared knowledge",
+      "state": "confirmed",
+      "detail": "{\n  \"schema\": 1,\n  \"entries\": {\n    \"delivery-day\": {\n      \"value\": \"Harbour Lane Bakery’s delivery day is Thursday.\",\n      \"provider\": \"codex\",\n      \"category\": \"fact\",\n      \"revision\": 1,\n      \"updatedAt\": \"2026-09-25T03:19:15.542Z\"\n    },\n    \"brand-colour\": {\n      \"value\": \"Harbour Lane Bakery's brand colour is teal.\",\n      \"provider\": \"claude\",\n      \"category\": \"fact\",\n      \"revision\": 1,\n      \"updatedAt\": \"2026-09-25T03:19:35.942Z\"\n    }\n  }\n}\n"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "codex turn",
+      "provider": "codex",
+      "prompt": "What is our brand colour? Answer with one word.",
+      "reply": "Teal",
+      "status": 0,
+      "error": null,
+      "seconds": 15,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-claude-first-MG6FQi/home/work - <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "codex: reads knowledge Claude saved",
+      "state": "confirmed",
+      "detail": "Teal"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "codex: change standing instructions",
+      "provider": "codex",
+      "prompt": "From now on, in both apps, end every message with the sign-off 'Cheers, Sam's assistant'.",
+      "reply": "Saved in the shared [instructions.md](/private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-claude-first-MG6FQi/home/.selr/bridge/core/instructions.md): “In both apps, end every message with the exact sign-off: Cheers, Sam's assistant”\n\nCheers, Sam's assistant",
+      "status": 0,
+      "error": null,
+      "seconds": 25,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-claude-first-MG6FQi/home/work - <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "the sign-off landed in the portable instructions",
+      "state": "confirmed",
+      "detail": "My business is Harbour Lane Bakery. Call me Sam.\nIn both apps, end every message with the exact sign-off: Cheers, Sam's assistant\n"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "claude turn",
+      "provider": "claude",
+      "prompt": "Write a one-sentence note to our supplier confirming Thursday's delivery.",
+      "reply": "Hi there — just confirming we're all set to receive Thursday's delivery (October 1) as scheduled, thanks!\n\nCheers, Sam's assistant",
+      "status": 0,
+      "error": null,
+      "seconds": 10,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id e1ddb0a9-0753-452f-a501-e72a15e0f844 <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "claude: follows the instruction Codex added",
+      "state": "confirmed",
+      "detail": "Hi there — just confirming we're all set to receive Thursday's delivery (October 1) as scheduled, thanks!\n\nCheers, Sam's assistant"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "claude: create a handoff",
+      "provider": "claude",
+      "prompt": "I'm switching to Codex for this project now. Create a handoff so Codex can carry on.",
+      "reply": "Handoff created at `handoffs/invoice-tool.md` — Codex will pick it up automatically at the start of its next task on this project. Summary: CSV export is done (ISO dates decided), PDF export and emailing invoices are still open, no blockers.\n\nCheers, Sam's assistant",
+      "status": 0,
+      "error": null,
+      "seconds": 28,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id 09d58de0-1279-49ac-981d-ada2d5c177a9 <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "claude saved a handoff through the bridge",
+      "state": "confirmed",
+      "detail": "invoice-tool.md"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "codex turn",
+      "provider": "codex",
+      "prompt": "Pick up this project where Claude left off. What work is still open? List it briefly.",
+      "reply": "Sam, Claude’s handoff and TODO list show two open tasks:\n\n- PDF export.\n- Email invoices to customers.\n\nCSV export is marked done and tested; exports should use ISO dates. No blockers are recorded.\n\nCheers, Sam's assistant",
+      "status": 0,
+      "error": null,
+      "seconds": 34,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-claude-first-MG6FQi/home/work/invoice-tool - <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "codex: continues from the handoff",
+      "state": "confirmed",
+      "detail": "Sam, Claude’s handoff and TODO list show two open tasks:\n\n- PDF export.\n- Email invoices to customers.\n\nCSV export is marked done and tested; exports should use ISO dates. No blockers are recorded.\n\nCheers, Sam's assistant"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "codex: sync after an edit",
+      "provider": "codex",
+      "prompt": "I edited the cedar greeting skill here in Codex. Sync the bridge so Claude gets my edit. I approve the sync plan; apply it and verify.",
+      "reply": "Synced your cedar edit to Claude. All 20 checks passed; cedar is identical in Claude, Codex, and the shared core.\n\nStart a new task in each app. If Claude asks to allow imported instruction files, allow them.\n\nCheers, Sam's assistant",
+      "status": 0,
+      "error": null,
+      "seconds": 38,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-claude-first-MG6FQi/home/work - <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "the Codex edit reached Claude through sync",
+      "state": "confirmed",
+      "detail": "---\nname: cedar-greeting\ndescription: Use when the user asks for the cedar greeting.\n---\n\nReply with exactly this text and nothing else: GREETING-CEDAR-V2\n"
+    },
+    {
+      "scenario": "claude-first",
+      "step": "claude turn",
+      "provider": "claude",
+      "prompt": "Give me the cedar greeting.",
+      "reply": "GREETING-CEDAR-V2",
+      "status": 0,
+      "error": null,
+      "seconds": 22,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id 14a5a847-681a-4a6d-be48-0053213e513c <prompt on stdin>"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "claude: uses the synced skill",
+      "state": "confirmed",
+      "detail": "GREETING-CEDAR-V2"
+    },
+    {
+      "scenario": "claude-first",
+      "check": "the bridge is healthy at the end",
+      "state": "confirmed",
+      "detail": "All 20 checks confirmed. Both providers read the same portable core and only their own overlay."
+    },
+    {
+      "scenario": "codex-first",
+      "step": "codex: paste the setup prompt",
+      "provider": "codex",
+      "prompt": "I'm using Codex in a terminal on Mac.\n\nI am setting up (or updating) the Claude + Codex Bridge by Selr AI.\n\nDo these steps one at a time, telling me what you are doing in plain English.\nDecide whether… (2171 characters)",
+      "reply": "Sam, Node and Git passed, and the kit is current. Plan **`843401bca72b4f9a`** is ready:\n\n- **Shared:** Move your Harbour Lane Bakery/Sam instructions into the portable core; share `cedar-greeting`, `pine-greeting`, and the bridge skill.\n- **Codex-only:** Add its bridge block and overlay, keep plugins provider-specific, and relocate `pine-greeting` into `~/.agents/skills`.\n- **Unsupported:** Codex sessions and cache stay untouched because they are private; credentials stay untouched because each provider requires its own sign-in.\n\nThe plan also installs shared knowledge support. There are no conflicts or manual importer steps. **Claude was not found**, so this plan connects only Codex.\n\nDo you approve plan **`843401bca72b4f9a`**? After approval, I’ll apply it and verify the result.\n\nYour requested [bridge skill](/private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-codex-first-LG1Fq2/home/.selr/claude-codex-bridge/skills/claude-codex-bridge/SKILL.md) explicitly requires: “Ask for approval of the plan by its `id`. Then `apply --plan <id>`.” That is why I’m pausing before applying.",
+      "status": 0,
+      "error": null,
+      "seconds": 55,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-codex-first-LG1Fq2/home/work - <prompt on stdin>"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "codex: approval 1",
+      "provider": "codex",
+      "prompt": "Yes, I approve the plan you showed me. Seed the portable instructions from my Codex instructions. Apply it, verify it, and tell me the result.",
+      "reply": "Sam, plan `843401bca72b4f9a` applied successfully. **All 14 verification checks passed; the bridge reports healthy.**\n\nPortable instructions were seeded from Codex: “My business is Harbour Lane Bakery. Call me Sam.” The three shared skills are verified, and shared knowledge is ready but empty.\n\n**Only Codex is connected:** Claude wasn’t found.\n\nStart a new Codex task and ask: **“What does the bridge give you?”** It should name the portable instructions, Codex overlay, and shared knowledge store.\n\nOnce Claude is installed and bridged, ask the same question in a new Claude task. Allow imported instruction files if Claude prompts you.",
+      "status": 0,
+      "error": null,
+      "seconds": 32,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> resume 01a0d696-04fa-75e3-9bdf-fda26cb0e55e - <prompt on stdin>"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "codex setup leaves the bridge healthy",
+      "state": "confirmed",
+      "detail": "All 14 checks confirmed. codex reads the portable core and only its own overlay."
+    },
+    {
+      "scenario": "codex-first",
+      "check": "codex is bridged",
+      "state": "confirmed",
+      "detail": "[\"codex\"]"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "Claude was not touched while only Codex was set up",
+      "state": "confirmed",
+      "detail": "a .claude folder appeared"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "claude: paste the setup prompt",
+      "provider": "claude",
+      "prompt": "I'm using Claude Code in a terminal on Mac.\n\nI am setting up (or updating) the Claude + Codex Bridge by Selr AI.\n\nDo these steps one at a time, telling me what you are doing in plain English.\nDecide w… (2177 characters)",
+      "reply": "Here's the plan (id `267a490100adf03a`):\n\n**Claude-specific (new for this app)**\n- A small managed block will be added to `~/.claude/CLAUDE.md` (file doesn't exist yet) pointing Claude at the portable instructions, its own overlay, and the shared knowledge contract. Everything else in that file stays yours.\n\n**Shared skills (joining Claude Code)**\n- `cedar-greeting`, `claude-codex-bridge`, `pine-greeting` — these already exist on the Codex side; Claude Code will get its own copies from the shared core.\n\n**Codex-specific (left as-is, unchanged)**\n- Its managed block in `AGENTS.md` and its plugins config stay Codex-only.\n\n**Translated — needs your action**\n- Optional bootstrap: in a Claude Code session, you can run `/import codex` to additionally pull in what Claude's own importer covers (instructions, mcp, commands, subagents, skills) from Codex. The bridge will only report this as your step and verify afterward — it won't run it for you.\n\n**Unsupported (left alone, never touched)**\n- Claude transcripts, Claude session data, Codex sessions, Codex cache, Codex credentials — all provider-private, the bridge never reads or copies these.\n\nNo conflicts.\n\nDo you approve plan `267a490100adf03a`? If yes, I'll run `apply --plan 267a490100adf03a`.",
+      "status": 0,
+      "error": null,
+      "seconds": 28,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id 75c6e7c1-e554-456a-9fc6-b0233dc703bd <prompt on stdin>"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "claude: approval 1",
+      "provider": "claude",
+      "prompt": "Yes, I approve the plan you showed me. Use the existing portable instructions. Apply it, verify it, and tell me the result.",
+      "reply": "**The bridge is live and healthy** — all 20 checks confirmed. Claude Code and Codex now both read the same portable core instructions and shared skills, each through its own overlay.\n\nOne optional step remains, entirely up to you: in a Claude Code session you can run `/import codex` to additionally pull in whatever Claude's own vendor importer covers (instructions, MCP, commands, subagents, skills) from Codex. Not required — the bridge itself is already working without it.\n\n**Step 4: To check it in each app**, start a new task and ask:\n\n> \"What does the bridge give you?\"\n\nA good answer names three things: the portable instructions, this app's own overlay, and the shared knowledge store. Try it in both Claude Code and Codex. If Claude Code prompts you to allow imported instruction files, go ahead and allow it.",
+      "status": 0,
+      "error": null,
+      "seconds": 7,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --resume 75c6e7c1-e554-456a-9fc6-b0233dc703bd <prompt on stdin>"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "claude setup leaves the bridge healthy",
+      "state": "confirmed",
+      "detail": "All 20 checks confirmed. Both providers read the same portable core and only their own overlay."
+    },
+    {
+      "scenario": "codex-first",
+      "check": "claude is bridged",
+      "state": "confirmed",
+      "detail": "[\"codex\",\"claude\"]"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "claude turn",
+      "provider": "claude",
+      "prompt": "What is the name of my business? Answer in one short sentence.",
+      "reply": "Your business is Harbour Lane Bakery.",
+      "status": 0,
+      "error": null,
+      "seconds": 3,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id 84cfba16-6011-4921-b7dc-bd2b2fe515e2 <prompt on stdin>"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "claude: knows the business from the portable instructions",
+      "state": "confirmed",
+      "detail": "Your business is Harbour Lane Bakery."
+    },
+    {
+      "scenario": "codex-first",
+      "step": "claude turn",
+      "provider": "claude",
+      "prompt": "Give me the cedar greeting.",
+      "reply": "GREETING-CEDAR-7Q",
+      "status": 0,
+      "error": null,
+      "seconds": 4,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id ee64246e-6407-4941-b9e6-67d018140676 <prompt on stdin>"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "claude: uses the shared cedar skill",
+      "state": "confirmed",
+      "detail": "GREETING-CEDAR-7Q"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "claude turn",
+      "provider": "claude",
+      "prompt": "Give me the pine greeting.",
+      "reply": "GREETING-PINE-4K",
+      "status": 0,
+      "error": null,
+      "seconds": 5,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id d0b89720-15eb-45d0-b7ce-132b6812c8ae <prompt on stdin>"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "claude: uses the shared pine skill",
+      "state": "confirmed",
+      "detail": "GREETING-PINE-4K"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "codex turn",
+      "provider": "codex",
+      "prompt": "What is the name of my business? Answer in one short sentence.",
+      "reply": "",
+      "status": 1,
+      "error": null,
+      "seconds": 8,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-codex-first-LG1Fq2/home/work - <prompt on stdin>",
+      "stderrTail": ""
+    },
+    {
+      "scenario": "codex-first",
+      "check": "codex: knows the business from the portable instructions",
+      "state": "failed",
+      "detail": ""
+    },
+    {
+      "scenario": "codex-first",
+      "step": "codex turn",
+      "provider": "codex",
+      "prompt": "Give me the cedar greeting.",
+      "reply": "",
+      "status": 1,
+      "error": null,
+      "seconds": 2,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-codex-first-LG1Fq2/home/work - <prompt on stdin>",
+      "stderrTail": ""
+    },
+    {
+      "scenario": "codex-first",
+      "check": "codex: uses the shared cedar skill",
+      "state": "failed",
+      "detail": ""
+    },
+    {
+      "scenario": "codex-first",
+      "step": "codex turn",
+      "provider": "codex",
+      "prompt": "Give me the pine greeting.",
+      "reply": "",
+      "status": 1,
+      "error": null,
+      "seconds": 3,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-codex-first-LG1Fq2/home/work - <prompt on stdin>",
+      "stderrTail": ""
+    },
+    {
+      "scenario": "codex-first",
+      "check": "codex: uses the shared pine skill",
+      "state": "failed",
+      "detail": ""
+    },
+    {
+      "scenario": "codex-first",
+      "step": "codex: save knowledge",
+      "provider": "codex",
+      "prompt": "Please remember this for both apps: our delivery day is Thursday.",
+      "reply": "",
+      "status": 1,
+      "error": null,
+      "seconds": 3,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-codex-first-LG1Fq2/home/work - <prompt on stdin>",
+      "stderrTail": ""
+    },
+    {
+      "scenario": "codex-first",
+      "check": "codex saved the delivery day to shared knowledge",
+      "state": "failed",
+      "detail": ""
+    },
+    {
+      "scenario": "codex-first",
+      "step": "claude turn",
+      "provider": "claude",
+      "prompt": "When is our delivery day? Answer with one word.",
+      "reply": "The memory store is empty — no delivery day has been saved yet. What is it, Sam?",
+      "status": 0,
+      "error": null,
+      "seconds": 5,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id d3ae0023-5103-4294-aadd-54e6837af237 <prompt on stdin>"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "claude: reads knowledge Codex saved",
+      "state": "failed",
+      "detail": "The memory store is empty — no delivery day has been saved yet. What is it, Sam?"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "claude: save knowledge",
+      "provider": "claude",
+      "prompt": "Please remember this for both apps: our brand colour is teal.",
+      "reply": "Saved — key `brandcolor`: \"Harbour Lane Bakery's brand colour is teal\" (shared, both apps will read it).",
+      "status": 0,
+      "error": null,
+      "seconds": 12,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id 504f80b0-09c4-421e-9245-2a8ae362b0c4 <prompt on stdin>"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "claude saved the brand colour to shared knowledge",
+      "state": "confirmed",
+      "detail": "{\n  \"schema\": 1,\n  \"entries\": {\n    \"brandcolor\": {\n      \"value\": \"Harbour Lane Bakery's brand colour is teal\",\n      \"provider\": \"claude\",\n      \"category\": \"preference\",\n      \"revision\": 1,\n      \"updatedAt\": \"2026-09-25T03:25:16.039Z\"\n    }\n  }\n}\n"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "codex turn",
+      "provider": "codex",
+      "prompt": "What is our brand colour? Answer with one word.",
+      "reply": "",
+      "status": 1,
+      "error": null,
+      "seconds": 3,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-codex-first-LG1Fq2/home/work - <prompt on stdin>",
+      "stderrTail": ""
+    },
+    {
+      "scenario": "codex-first",
+      "check": "codex: reads knowledge Claude saved",
+      "state": "failed",
+      "detail": ""
+    },
+    {
+      "scenario": "codex-first",
+      "step": "codex: change standing instructions",
+      "provider": "codex",
+      "prompt": "From now on, in both apps, end every message with the sign-off 'Cheers, Sam's assistant'.",
+      "reply": "",
+      "status": 1,
+      "error": null,
+      "seconds": 2,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-codex-first-LG1Fq2/home/work - <prompt on stdin>",
+      "stderrTail": ""
+    },
+    {
+      "scenario": "codex-first",
+      "check": "the sign-off landed in the portable instructions",
+      "state": "failed",
+      "detail": "My business is Harbour Lane Bakery. Call me Sam.\n"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "claude turn",
+      "provider": "claude",
+      "prompt": "Write a one-sentence note to our supplier confirming Thursday's delivery.",
+      "reply": "Hi — just confirming we're all set for Thursday, October 1, 2026 delivery to Harbour Lane Bakery — thanks!\n\n— Sam",
+      "status": 0,
+      "error": null,
+      "seconds": 11,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id c0487f21-9100-4e6e-a7b3-74c1e439e0c0 <prompt on stdin>"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "claude: follows the instruction Codex added",
+      "state": "failed",
+      "detail": "Hi — just confirming we're all set for Thursday, October 1, 2026 delivery to Harbour Lane Bakery — thanks!\n\n— Sam"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "claude: create a handoff",
+      "provider": "claude",
+      "prompt": "I'm switching to Codex for this project now. Create a handoff so Codex can carry on.",
+      "reply": "Done — the handoff file is in place and the temp input file is cleaned up. Codex will read it automatically at the start of its next task on invoice-tool.",
+      "status": 0,
+      "error": null,
+      "seconds": 48,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id 7e9a00fe-134a-49f1-b9f2-fc6c01491efa <prompt on stdin>"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "claude saved a handoff through the bridge",
+      "state": "confirmed",
+      "detail": "invoice-tool.md"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "codex turn",
+      "provider": "codex",
+      "prompt": "Pick up this project where Claude left off. What work is still open? List it briefly.",
+      "reply": "",
+      "status": 1,
+      "error": null,
+      "seconds": 25,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-codex-first-LG1Fq2/home/work/invoice-tool - <prompt on stdin>",
+      "stderrTail": "6390Z ERROR codex_login::auth::manager: Failed to refresh token status=400 Bad Request detail=TokenErrorDetail { error_code: Some(\"empty_string\"), error_message: Some(\"Invalid 'refresh_token': empty string. Expected a string with minimum length 1, but got an empty string instead.\"), .. }\n2026-09-25T03:26:46.445523Z ERROR codex_login::auth::manager: Failed to refresh token status=400 Bad Request detail=TokenErrorDetail { error_code: Some(\"empty_string\"), error_message: Some(\"Invalid 'refresh_token': empty string. Expected a string with minimum length 1, but got an empty string instead.\"), .. }\n"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "codex: continues from the handoff",
+      "state": "failed",
+      "detail": "ssage: Some(\"Invalid 'refresh_token': empty string. Expected a string with minimum length 1, but got an empty string instead.\"), .. }\n2026-09-25T03:26:36.557315Z ERROR codex_login::auth::manager: Failed to refresh token status=400 Bad Request detail=TokenErrorDetail { error_code: Some(\"empty_string\"), error_message: Some(\"Invalid 'refresh_token': empty string. Expected a string with minimum length 1, but got an empty string instead.\"), .. }\n2026-09-25T03:26:37.453476Z ERROR codex_login::auth::manager: Failed to refresh token status=400 Bad Request detail=TokenErrorDetail { error_code: Some(\"em"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "codex: sync after an edit",
+      "provider": "codex",
+      "prompt": "I edited the cedar greeting skill here in Codex. Sync the bridge so Claude gets my edit. I approve the sync plan; apply it and verify.",
+      "reply": "",
+      "status": 1,
+      "error": null,
+      "seconds": 26,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> -C /private/var/folders/w4/7tf52qjd5vl3d3dhpcnkn6zw0000gn/T/ccb-accept-codex-first-LG1Fq2/home/work - <prompt on stdin>",
+      "stderrTail": "9583Z ERROR codex_login::auth::manager: Failed to refresh token status=400 Bad Request detail=TokenErrorDetail { error_code: Some(\"empty_string\"), error_message: Some(\"Invalid 'refresh_token': empty string. Expected a string with minimum length 1, but got an empty string instead.\"), .. }\n2026-09-25T03:27:11.960700Z ERROR codex_login::auth::manager: Failed to refresh token status=400 Bad Request detail=TokenErrorDetail { error_code: Some(\"empty_string\"), error_message: Some(\"Invalid 'refresh_token': empty string. Expected a string with minimum length 1, but got an empty string instead.\"), .. }\n"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "codex: approve the sync",
+      "provider": "codex",
+      "prompt": "Yes, apply that sync plan now and verify.",
+      "reply": "",
+      "status": 1,
+      "error": null,
+      "seconds": 24,
+      "command": "codex exec --json --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message <last-message-file> resume 01a0d699-eb73-77b0-bbcb-eaf288d69a6e - <prompt on stdin>",
+      "stderrTail": "5796Z ERROR codex_login::auth::manager: Failed to refresh token status=400 Bad Request detail=TokenErrorDetail { error_code: Some(\"empty_string\"), error_message: Some(\"Invalid 'refresh_token': empty string. Expected a string with minimum length 1, but got an empty string instead.\"), .. }\n2026-09-25T03:27:36.505463Z ERROR codex_login::auth::manager: Failed to refresh token status=400 Bad Request detail=TokenErrorDetail { error_code: Some(\"empty_string\"), error_message: Some(\"Invalid 'refresh_token': empty string. Expected a string with minimum length 1, but got an empty string instead.\"), .. }\n"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "the Codex edit reached Claude through sync",
+      "state": "failed",
+      "detail": "---\nname: cedar-greeting\ndescription: Use when the user asks for the cedar greeting.\n---\n\nReply with exactly this text and nothing else: GREETING-CEDAR-7Q\n"
+    },
+    {
+      "scenario": "codex-first",
+      "step": "claude turn",
+      "provider": "claude",
+      "prompt": "Give me the cedar greeting.",
+      "reply": "GREETING-CEDAR-7Q",
+      "status": 0,
+      "error": null,
+      "seconds": 8,
+      "command": "claude -p --output-format text --dangerously-skip-permissions --session-id fe7b3f8b-30ec-4883-b8ce-4cc0937cb6a0 <prompt on stdin>"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "claude: uses the synced skill",
+      "state": "failed",
+      "detail": "GREETING-CEDAR-7Q"
+    },
+    {
+      "scenario": "codex-first",
+      "check": "the bridge is healthy at the end",
+      "state": "failed",
+      "detail": "2 checks need attention: codex:skill:cedar-greeting, shared:cedar-greeting."
+    }
+  ]
+}

@@ -5,7 +5,8 @@
 // sign-in that cannot be refreshed or written back:
 //   Claude: CLAUDE_CODE_OAUTH_TOKEN (env), or on macOS the keychain access token.
 //   Codex:  CCB_CODEX_AUTH (auth.json text) or CODEX_API_KEY (env), or the
-//           current user's ~/.codex/auth.json with its refresh token removed.
+//           current user's ~/.codex/auth.json with its refresh token removed,
+//           re-copied before every Codex turn.
 // On macOS each run is wrapped in sandbox-exec so it cannot write anywhere in
 // the real home folder.
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -59,6 +60,10 @@ export function runAgent(provider, { home, cwd, prompt, session = null, env = pr
     if (!id) id = randomUUID();
     args = ['-p', '--output-format', 'text', '--dangerously-skip-permissions', ...(session ? ['--resume', id] : ['--session-id', id])];
   } else {
+    // The real app refreshes its own sign-in, which retires older access
+    // tokens; copy the current one before every turn so a long run never
+    // holds a stale token (and never holds a refresh token at all).
+    prepareCodexHome(join(home, '.codex'), env);
     bin = env.CCB_CODEX_BIN || 'codex';
     last = join(mkdtempSync(join(tmpdir(), 'ccb-last-')), 'last.txt');
     args = ['exec', '--json', '--skip-git-repo-check', '--dangerously-bypass-approvals-and-sandbox', '--output-last-message', last, ...(session ? ['resume', id, '-'] : ['-C', cwd, '-'])];

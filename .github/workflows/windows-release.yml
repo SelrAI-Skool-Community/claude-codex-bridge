@@ -8,6 +8,10 @@
 name: windows-release
 on:
   workflow_dispatch:
+    inputs:
+      journey:
+        description: Run the release journey too
+        default: 'true'
   push:
     branches: ['release-evidence/**']
 jobs:
@@ -31,6 +35,9 @@ jobs:
       - run: codex --version
       - name: Fixture suite
         run: npm test
+      - name: Skill discovery probe
+        run: node scripts/skill-discovery-probe.mjs --out docs/verification/windows-discovery.json
+        continue-on-error: true
       - name: Release journey
         run: node scripts/release-journey.mjs --out docs/verification/windows-journey.json
         continue-on-error: true
