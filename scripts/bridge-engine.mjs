@@ -24,7 +24,14 @@ const other = p => p === 'claude' ? 'codex' : 'claude';
 const short = v => typeof v === 'string' ? v.slice(0, 9) : 'unknown';
 const dirHash = files => hash(JSON.stringify(Object.entries(files).sort(([a], [b]) => a.localeCompare(b))));
 const skillFilesHash = dir => existsSync(dir) ? dirHash(readSkill(dir).files) : null;
-export const adapterBlock = ({ core, kit, provider, instructions, overlay, contract }) => `${BLOCK_BEGIN}\n## Claude + Codex Bridge\n\nKit home: ${kit}\nBridge core: ${core}\nCurrent provider: ${provider}.\nAt the first message of each task, read ${instructions}, then ${overlay}, then follow ${contract}.\n${BLOCK_END}`;
+// The managed block. Claude Code loads `@path` imports into context at session
+// start, so its block imports the portable instructions, its overlay and the
+// knowledge contract: tested live, a pointer alone was not followed unprompted.
+// Codex has no import syntax and follows the pointer (tested live as well).
+export const importPath = path => path.replace(/\\/g, '/');
+export const adapterBlock = ({ core, kit, provider, instructions, overlay, contract }) => provider === 'claude'
+  ? `${BLOCK_BEGIN}\n## Claude + Codex Bridge\n\nKit home: ${kit}\nBridge core: ${core}\nCurrent provider: claude. The portable instructions, the Claude overlay and the knowledge contract follow.\n\n@${importPath(instructions)}\n@${importPath(overlay)}\n@${importPath(contract)}\n${BLOCK_END}`
+  : `${BLOCK_BEGIN}\n## Claude + Codex Bridge\n\nKit home: ${kit}\nBridge core: ${core}\nCurrent provider: ${provider}.\nAt the first message of each task, read ${instructions}, then ${overlay}, then follow ${contract}.\n${BLOCK_END}`;
 const validName = name => /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/.test(name) && !name.includes('..');
 
 export function kitVersion(kit) {
@@ -837,7 +844,7 @@ export function verify(options = {}) {
     if (ambiguous) check(`${provider}:block`, 'conflicted', `${rec.instructions} has ambiguous bridge markers.`);
     else if (blocks.length !== 1) check(`${provider}:block`, 'failed', `${rec.instructions} has ${blocks.length} bridge blocks; expected one.`);
     else if (hash(blocks[0]) !== rec.adapterHash) check(`${provider}:block`, 'blocked', `The bridge block in ${rec.instructions} was edited; it is left unchanged.`);
-    else if (!blocks[0].includes(p.instructions) || !blocks[0].includes(join(p.overlays, `${provider}.md`)) || blocks[0].includes(join(p.overlays, `${other(provider)}.md`))) check(`${provider}:block`, 'failed', 'The bridge block points at the wrong overlay or instructions.');
+    else if (![p.instructions, importPath(p.instructions)].some(x => blocks[0].includes(x)) || ![join(p.overlays, `${provider}.md`), importPath(join(p.overlays, `${provider}.md`))].some(x => blocks[0].includes(x)) || [join(p.overlays, `${other(provider)}.md`), importPath(join(p.overlays, `${other(provider)}.md`))].some(x => blocks[0].includes(x))) check(`${provider}:block`, 'failed', 'The bridge block points at the wrong overlay or instructions.');
     else check(`${provider}:block`, 'confirmed', `${provider} reads ${p.instructions} and only its own overlay ${join(p.overlays, `${provider}.md`)}.`);
     check(`${provider}:ready`, rec.ready ? 'confirmed' : 'blocked', rec.ready ? `${provider} receipt is ready.` : `${provider} receipt is not ready; the last operation did not complete.`);
     const overlay = join(p.overlays, `${provider}.md`);

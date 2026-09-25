@@ -25,6 +25,8 @@ test('Claude-only to both: the portable core is seeded from Claude and Codex joi
     assert.ok(second.plan.items.every(i => i.id !== 'instructions:portable'), 'the portable instructions are seeded once');
     assert.ok(fx.readText(fx.instructions('codex')).startsWith('Codex personal.\n'));
     assert.ok(fx.readText(fx.instructions('codex')).includes(join('overlays', 'codex.md')) && !fx.readText(fx.instructions('codex')).includes(join('overlays', 'claude.md')), 'Codex reads only its own overlay');
+    const claudeBlock = fx.readText(fx.instructions('claude'));
+    assert.ok(claudeBlock.includes(`@${fx.corePath('instructions.md').replace(/\\/g, '/')}`) && claudeBlock.includes('overlays/claude.md') && !claudeBlock.includes('overlays/codex.md'), 'Claude imports the portable instructions and only its own overlay');
     assert.equal(fx.readText(fx.skillPath('codex', 'notes')), fx.readText(fx.skillPath('claude', 'notes')), 'the shared skill is now in Codex');
     const m = fx.manifest();
     assert.ok(m.providers.claude.ready && m.providers.codex.ready);
@@ -47,7 +49,7 @@ test('Codex-only to both mirrors the Claude-only path, using AGENTS.override.md 
     fx.seed('claude', {});
     B.bridge(fx, { provider: 'claude' });
     assert.equal(fx.readText(fx.skillPath('claude', 'drafts')), fx.readText(fx.skillPath('codex', 'drafts')));
-    assert.ok(fx.readText(fx.instructions('claude')).includes(join('overlays', 'claude.md')));
+    assert.ok(fx.readText(fx.instructions('claude')).includes('overlays/claude.md'));
     assert.ok(B.verify(fx).healthy);
   } finally { fx.cleanup(); }
 });
