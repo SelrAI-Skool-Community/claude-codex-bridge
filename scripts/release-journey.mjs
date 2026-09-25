@@ -9,16 +9,15 @@
 //
 //   node scripts/release-journey.mjs [--out docs/verification/<file>.json] [--skip-fresh-session]
 //
-// The Codex fresh session needs `auth.json` in its CODEX_HOME: this script
-// links the current user's `~/.codex/auth.json` into the fixture (a link, not
-// a copy; nothing is written to it). The Claude fresh session uses
-// CLAUDE_CODE_OAUTH_TOKEN, read from the macOS keychain when unset.
+// Sign-in for the fresh sessions comes from scripts/agent-cli.mjs: an access
+// token only, written into the fixture, never linked to the real files.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, hostname, platform, release, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { freshSessionCheck, overlayMarker, PROBE } from './fresh-session-check.mjs';
+import { prepareCodexHome, versionOf as agentVersion } from './agent-cli.mjs';
 
 const REPO = realpathSync(resolve(dirname(fileURLToPath(import.meta.url)), '..'));
 const args = process.argv.slice(2);
@@ -28,7 +27,7 @@ const root = realpathSync(mkdtempSync(join(tmpdir(), 'ccb-journey-')));
 const home = join(root, 'home'); mkdirSync(home);
 const claudeHome = join(home, '.claude'), codexHome = join(home, '.codex');
 const steps = [];
-const versionOf = bin => { try { return execFileSync(bin, ['--version'], { encoding: 'utf8', timeout: 15000 }).trim(); } catch { return null; } };
+const versionOf = bin => agentVersion(bin);
 const bridge = (label, ...cli) => {
   const r = spawnSync(process.execPath, [join(REPO, 'scripts/bridge.mjs'), ...cli, '--home', home, '--kit', REPO], { encoding: 'utf8', env: { ...process.env, CLAUDE_CONFIG_DIR: '', CODEX_HOME: '' } });
   let json = null; try { json = JSON.parse(r.stdout); } catch { /* error output */ }
@@ -85,7 +84,8 @@ try {
   const log = join(root, 'checkpoints.log'); writeFileSync(log, '');
   const killed = spawnSync(process.execPath, [join(REPO, 'tests/fixtures/apply-driver.mjs'), home, plan.id, 'claude:skill:journey-notes', log], { encoding: 'utf8' });
   steps.push({ label: 'apply killed at claude:skill:journey-notes', command: 'node tests/fixtures/apply-driver.mjs <home> <plan> claude:skill:journey-notes', signal: killed.signal, boundaries: readFileSync(log, 'utf8').trim().split('\n') });
-  expect('process died at the boundary', killed.signal === 'SIGKILL', String(killed.signal));
+  const lastBoundary = readFileSync(log, 'utf8').trim().split('\n').at(-1);
+  expect('process died at the boundary', killed.signal === 'SIGKILL' || (platform() === 'win32' && killed.status !== 0 && lastBoundary === 'claude:skill:journey-notes'), `${killed.signal} ${killed.status} ${lastBoundary}`);
   v = bridge('verify (interrupted)', 'verify');
   expect('interrupted state reported', !v.healthy && v.checks.some(c => c.name === 'receipt' && c.state === 'blocked'), v.summary);
   plan = bridge('plan (recover)', 'plan', '--provider', 'codex', '--host', 'cli');
@@ -104,8 +104,8 @@ try {
   expect('handoff saved', handoff.saved === true, handoff.summary);
   let fresh = null;
   if (!skipFresh) {
-    if (existsSync(join(homedir(), '.codex/auth.json'))) symlinkSync(join(homedir(), '.codex/auth.json'), join(codexHome, 'auth.json'));
-    fresh = freshSessionCheck({ home, claudeHome, codexHome, cwd: home });
+    prepareCodexHome(codexHome);
+    fresh = freshSessionCheck({ home, cwd: home });
     for (const r of fresh.results) steps.push({ label: `fresh ${r.provider} session`, command: r.command, exitStatus: r.exitStatus, state: r.state, observed: r.observed, output: r.output });
     expect('fresh sessions read the core, their own overlay and the handoff', fresh.healthy, fresh.results.map(r => `${r.provider}: ${r.state} ${JSON.stringify(r.observed)}`).join('; '));
     rmSync(join(codexHome, 'auth.json'), { force: true });
@@ -127,7 +127,7 @@ try {
   var freshReport = fresh;
 } catch (error) { status = 'failed'; steps.push({ label: 'failure', error: error.message }); }
 finally {
-  const evidence = { schema: 1, status, at: new Date().toISOString(), host: hostname(), os: `${platform()} ${release()}`, sourceRevision: (() => { try { return execFileSync('git', ['-C', REPO, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })(), versions: { node: process.version, claude: versionOf('claude'), codex: versionOf('codex') }, fixture: { root, note: 'A clean fixture home under the temp folder; the real user home was not changed.' }, steps, freshSession: typeof freshReport !== 'undefined' ? freshReport : null, unsupported: 'Windows evidence is not produced by this run; see docs/verification/README.md.' };
+  const evidence = { schema: 1, status, at: new Date().toISOString(), host: hostname(), os: `${platform()} ${release()}`, sourceRevision: (() => { try { return execFileSync('git', ['-C', REPO, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { return 'unknown'; } })(), versions: { node: process.version, claude: versionOf(process.env.CCB_CLAUDE_BIN || 'claude'), codex: versionOf(process.env.CCB_CODEX_BIN || 'codex') }, fixture: { root, note: 'A clean fixture home under the temp folder; the real user home was not changed.' }, steps, freshSession: typeof freshReport !== 'undefined' ? freshReport : null, platformNote: `Recorded on ${platform()}; each platform needs its own record (docs/verification/README.md).` };
   mkdirSync(dirname(out), { recursive: true });
   writeFileSync(out, JSON.stringify(evidence, null, 2) + '\n');
   rmSync(root, { recursive: true, force: true });

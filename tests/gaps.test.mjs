@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { B, REPO, fixtureHome, item, killedAt, ops, skill } from './helpers.mjs';
 
@@ -238,5 +238,29 @@ test('reviewed defects stay fixed: MCP url and command secrets, seed instruction
       const adapter = JSON.parse(out.stdout).operations.find(o => o.op === 'adapter');
       assert.equal(adapter.instructions, fu.instructions('claude'));
     } finally { fu.cleanup(); }
+  } finally { fx.cleanup(); }
+});
+
+test('skills both apps already link to the same folder are reported as shared and left alone; --force-share overrides the assumption check; status keeps inventoried MCP servers in step', () => {
+  const fx = fixtureHome('links');
+  try {
+    fx.seed('claude', { instructions: 'Hi.\n', skills: { flagged: skill('flagged', 'Use mcp__linear__get_issue.\n') } });
+    fx.seed('codex', { instructions: 'Hi.\n' });
+    const shared = join(fx.root, 'my-skills/linked'); mkdirSync(shared, { recursive: true }); writeFileSync(join(shared, 'SKILL.md'), skill('linked')['SKILL.md']);
+    const kind = process.platform === 'win32' ? 'junction' : 'dir';
+    mkdirSync(fx.skillRoot('codex'), { recursive: true });
+    symlinkSync(shared, join(fx.skillRoot('claude'), 'linked'), kind); symlinkSync(shared, join(fx.skillRoot('codex'), 'linked'), kind);
+    writeFileSync(join(fx.home, '.claude.json'), JSON.stringify({ mcpServers: { plain: { command: 'uvx', args: ['weather'] } } }));
+    let p = B.plan(fx);
+    assert.equal(item(p, 'skill:linked').collision, 'linked'); assert.equal(item(p, 'skill:linked').disposition, 'shared');
+    assert.ok(!p.operations.some(o => o.name === 'linked'));
+    assert.equal(item(p, 'skill:claude/flagged').disposition, 'claude-only'); assert.match(item(p, 'skill:claude/flagged').reason, /--force-share flagged/);
+    B.apply(fx, p.id);
+    const s = B.status(fx);
+    assert.equal(s.changed.filter(c => c.kind === 'mcp').length, 0, 'an inventoried server is not waiting for sync'); assert.equal(s.mcpInventoried, 1);
+    p = B.plan(fx, { forceShare: ['flagged'] });
+    assert.equal(item(p, 'skill:flagged').disposition, 'shared');
+    B.apply(fx, p.id);
+    assert.ok(existsSync(fx.skillPath('codex', 'flagged')));
   } finally { fx.cleanup(); }
 });

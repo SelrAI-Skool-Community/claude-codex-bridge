@@ -17,6 +17,7 @@
 //   --instructions-from <claude|codex|none> --resolve <name>=<choice> (repeatable)
 //   --project <dir> (repeatable: share that project's AGENTS.md with both providers)
 //   --keep-provider-instructions (copy seeded instructions instead of moving them)
+//   --force-share a,b (share skills the provider-assumption check would keep app-specific)
 import { realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -47,6 +48,7 @@ export function parseArgs(argv) {
       case '--remove-provider': options.removeProvider = take(); break;
       case '--project': options.projects.push(resolve(take())); break;
       case '--keep-provider-instructions': options.keepProviderInstructions = true; break;
+      case '--force-share': options.forceShare = take().split(',').map(x => x.trim()).filter(Boolean); break;
       case '--plan': options.planId = take(); break;
       case '--input': options.input = take(); break;
       case '--name': options.name = take(); break;
@@ -68,7 +70,7 @@ export function run(argv, env = process.env) {
   const common = { home: options.home || homedir(), kit: options.kit, providerHomes: { claude: options.providerHomes.claude, codex: options.providerHomes.codex }, env: isolated };
   switch (command) {
     case 'inspect': return inspect(common);
-    case 'plan': case 'sync': return plan({ ...common, intent: 'bridge', provider: options.provider, host: options.host || 'cli', only: options.only, skip: options.skip, instructionsFrom: options.instructionsFrom, resolve: options.resolve, projects: options.projects, keepProviderInstructions: options.keepProviderInstructions });
+    case 'plan': case 'sync': return plan({ ...common, intent: 'bridge', provider: options.provider, host: options.host || 'cli', only: options.only, skip: options.skip, instructionsFrom: options.instructionsFrom, resolve: options.resolve, projects: options.projects, keepProviderInstructions: options.keepProviderInstructions, forceShare: options.forceShare || [] });
     case 'remove': if (!['claude', 'codex'].includes(options.removeProvider)) throw Error('Say which provider to remove: --remove-provider claude|codex.'); return plan({ ...common, intent: 'remove', removeProvider: options.removeProvider, provider: options.provider, host: options.host || 'cli' });
     case 'uninstall': return plan({ ...common, intent: 'uninstall', provider: options.provider, host: options.host || 'cli' });
     case 'apply': return apply({ home: common.home, planId: options.planId });

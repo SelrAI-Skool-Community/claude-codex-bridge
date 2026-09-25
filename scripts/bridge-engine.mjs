@@ -115,7 +115,7 @@ export function classifyProjects(inv, projects) {
   }
   return items;
 }
-export function classify(inv, { only = null, skip = [], instructionsFrom = null, resolve: resolutions = {}, projects = [] } = {}) {
+export function classify(inv, { only = null, skip = [], forceShare = [], instructionsFrom = null, resolve: resolutions = {}, projects = [] } = {}) {
   const items = [...classifyProjects(inv, projects)];
   const receiptProviders = inv.receipt.providers;
   const present = Object.fromEntries(PROVIDERS.map(p => [p, inv.providers[p].present]));
@@ -156,7 +156,14 @@ export function classify(inv, { only = null, skip = [], instructionsFrom = null,
       if (stagedOnly(skill)) continue;
       if (name === 'claude-codex-bridge') continue; // the kit's own skill is planned from the kit
       if (!validName(name)) { item('skill', `${provider}/${name}`, 'unsupported', { source: skill.dir, destination: null, reason: 'This skill folder name cannot be represented safely; it is left where it is.' }); continue; }
-      if (skill.linked || skill.links.length) { item('skill', `${provider}/${name}`, `${provider}-only`, { source: skill.dir, destination: null, reason: 'This skill contains a link, so it stays where it is; the bridge copies ordinary files only.' }); continue; }
+      if (skill.linked || skill.links.length) {
+        // Both apps already loading the same folder through the user's own links
+        // is sharing the bridge leaves as it is; any other link stays put.
+        const real = dir => { try { return realpathSync(dir); } catch { return null; } };
+        const twinLink = inv.providers[other(provider)].present ? inv.providers[other(provider)].skills.find(s => s.name === name && s.linked) : null;
+        if (skill.linked && twinLink && real(skill.dir) && real(skill.dir) === real(twinLink.dir)) { if (provider === 'claude') item('skill', name, 'shared', { source: `${skill.dir} and ${twinLink.dir}`, destination: null, collision: 'linked', reason: 'Both apps already load this skill from the same folder through your own links. The bridge leaves the links as they are.' }); continue; }
+        item('skill', `${provider}/${name}`, `${provider}-only`, { source: skill.dir, destination: null, reason: 'This skill is a link or contains one, so it stays where it is; the bridge copies ordinary files only.' }); continue;
+      }
       if (skill.legacyDuplicate) { const same = skill.legacyDuplicate === 'identical'; item('skill', `${provider}/${name}@legacy`, same ? `${provider}-only` : 'unsupported', { source: skill.dir, destination: same ? null : null, collision: same ? 'duplicate' : 'duplicate-different', userAction: same ? null : `Codex has two different copies of "${name}": ${skill.dir} and ${join(found.skillRoot, name)}. Keep one, then plan again.`, reason: same ? `Codex already loads this skill twice: an identical copy is in ${found.skillRoot}. The copy in ${skill.root} is removed so Codex sees it once.` : 'Two different copies with one name confuse Codex; the bridge leaves both until you choose.', removeLegacy: same }); continue; }
       if (!skill.managedRoot) { item('skill', `${provider}/${name}`, `${provider}-only`, { source: skill.dir, destination: null, reason: `Found in ${provider}'s secondary skill folder ${skill.root}. The bridge manages ${found.skillRoot}; move it there to share it.` }); continue; }
       if (skip.includes(name)) { item('skill', `${provider}/${name}`, `${provider}-only`, { source: skill.dir, destination: null, reason: 'You asked to keep this skill provider-specific.' }); continue; }
@@ -166,7 +173,7 @@ export function classify(inv, { only = null, skip = [], instructionsFrom = null,
       if (scrub.hits.length) { item('skill', `${provider}/${name}`, 'unsupported', { source: skill.dir, destination: null, userAction: `Remove the secret from ${scrub.hits.map(h => `${h.path}:${h.line} (${h.ruleId})`).join(', ')} before sharing.`, reason: 'A secret-shaped value was found inside this skill. Nothing containing a secret is copied.' }); continue; }
       const marks = providerAssumptions(blobs);
       const assumes = marks[provider].length ? provider : marks[other(provider)].length ? other(provider) : null;
-      if (assumes) { item('skill', `${provider}/${name}`, `${assumes}-only`, { source: skill.dir, destination: null, reason: `This skill assumes ${assumes} (${marks[assumes].slice(0, 3).map(m => `${m.path}:${m.line} "${m.mark}"`).join('; ')}), so it stays provider-specific rather than falsely appearing portable.` }); continue; }
+      if (assumes && !forceShare.includes(name)) { item('skill', `${provider}/${name}`, `${assumes}-only`, { source: skill.dir, destination: null, reason: `This skill assumes ${assumes} (${marks[assumes].slice(0, 3).map(m => `${m.path}:${m.line} "${m.mark}"`).join('; ')}), so it stays provider-specific rather than falsely appearing portable. To share it anyway, plan with --force-share ${name}.` }); continue; }
       const twin = inv.providers[other(provider)].present ? inv.providers[other(provider)].skills.find(s => s.name === name && s.managedRoot && !stagedOnly(s)) : null;
       const warnings = checkPortability(blobs).warnings.map(w => `${w.path}:${w.line} ${w.ruleId}`);
       if (twin) {
@@ -304,7 +311,7 @@ export function plan(options = {}) {
     }
     if (seed?.collision === 'conflict' && !conflicts.includes(seed)) conflicts.push(seed);
     // Skills and translated commands: into the core, then into every present provider.
-    for (const it of items.filter(i => (i.kind === 'skill' || i.kind === 'command') && i.disposition !== 'unsupported')) {
+    for (const it of items.filter(i => (i.kind === 'skill' || i.kind === 'command') && i.disposition !== 'unsupported' && i.collision !== 'linked')) {
       if (it.collision === 'conflict') { conflicts.push(it); continue; }
       if (it.kind === 'skill' && it.disposition === 'shared') {
         const name = it.name;
@@ -892,7 +899,10 @@ export function status(options = {}) {
     else report.changed.push({ name, decision: r.decision, from: r.from, reason: r.reason });
   }
   inv.manifest = manifest;
+  const inventoried = existsSync(p.mcp) ? (() => { try { return JSON.parse(read(p.mcp)).servers || []; } catch { return []; } })() : [];
+  report.mcpInventoried = inventoried.length;
   for (const it of classify(inv)) {
+    if (it.kind === 'mcp' && it.disposition === 'translated' && inventoried.some(s => s.provider === it.metadata.provider && s.name === it.metadata.name)) continue;
     if (it.kind === 'instruction-block' || it.id === 'instructions:portable' || it.id.startsWith('move-instructions:') || it.kind === 'native-import' || it.kind === 'relocate') continue;
     if (it.disposition === 'unsupported') report.unsupported.push({ name: it.name, kind: it.kind, reason: it.reason });
     else if (it.disposition.endsWith('-only')) report.providerSpecific.push({ name: it.name, kind: it.kind, provider: it.disposition.replace('-only', ''), reason: it.reason });
