@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { B, REPO, fixtureHome, item, ops, skill } from './helpers.mjs';
+import { B, REPO, fixtureHome, item, killedAt, ops, skill } from './helpers.mjs';
 
 const both = fx => { fx.seed('claude', { instructions: 'Hi.\n' }); fx.seed('codex', { instructions: 'Hi.\n' }); };
 
@@ -168,7 +168,7 @@ test('reviewed defects stay fixed: MCP url and command secrets, seed instruction
     assert.match(item(p, 'instructions:portable').userAction, /secret-shaped/);
     assert.equal(item(p, 'command:claude/summ').collision, 'conflict', 'same-named commands with different text conflict');
     assert.ok(!p.operations.some(o => o.op === 'translate-command'));
-    p = B.plan(fx, { instructionsFrom: 'claude', resolve: { summ: 'claude' } });
+    p = B.plan(fx, { instructionsFrom: 'claude', resolve: { summ: 'claude' }, keepProviderInstructions: true });
     assert.equal(item(p, 'command:claude/summ').disposition, 'translated'); assert.equal(item(p, 'command:codex/summ').disposition, 'codex-only');
     assert.ok(!p.operations.some(o => o.op === 'seed-instructions' && 'body' in o), 'the plan references the seed source instead of carrying its text');
     B.apply(fx, p.id);
@@ -187,7 +187,7 @@ test('reviewed defects stay fixed: MCP url and command secrets, seed instruction
       const q = B.plan(fy);
       const log = join(fy.root, 'log'); writeFileSync(log, '');
       const killed = spawnSync(process.execPath, [join(REPO, 'tests/fixtures/apply-driver.mjs'), fy.home, q.id, 'adapter:codex', log], { encoding: 'utf8' });
-      assert.equal(killed.signal, 'SIGKILL');
+      assert.ok(killedAt({ ...killed, boundaries: readFileSync(log, 'utf8').trim().split('\n') }, 'adapter:codex'));
       const removal = B.remove(fy, 'codex');
       assert.equal(removal.result.applied, true);
       assert.equal(fy.readText(fy.instructions('codex')), 'Hi.\n');

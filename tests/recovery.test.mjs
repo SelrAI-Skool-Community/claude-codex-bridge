@@ -9,7 +9,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeF
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { B, REPO, fixtureHome, skill } from './helpers.mjs';
+import { B, REPO, fixtureHome, killedAt, skill } from './helpers.mjs';
 import { hash } from '../scripts/bridge-files.mjs';
 
 const driver = join(REPO, 'tests/fixtures/apply-driver.mjs');
@@ -22,7 +22,7 @@ function runApply(fx, planId, killAt = '') {
 const seedBoth = fx => {
   fx.seed('claude', { instructions: 'Always call me Sam.\n', skills: { notes: skill('notes', 'n\n', { 'ref/a.md': 'a\n' }), mine: skill('mine', 'mine\n') }, files: { 'settings.json': '{}' } });
   fx.seed('codex', { instructions: 'Always call me Sam.\n', skills: { own: skill('own', 'Set model_reasoning_effort.\n') } });
-  return { [fx.instructions('claude')]: 'Always call me Sam.\n', [fx.instructions('codex')]: 'Always call me Sam.\n', [join(fx.config('claude'), 'settings.json')]: '{}', [fx.skillPath('codex', 'own')]: skill('own', 'Set model_reasoning_effort.\n')['SKILL.md'] };
+  return { [join(fx.config('claude'), 'settings.json')]: '{}', [fx.skillPath('codex', 'own')]: skill('own', 'Set model_reasoning_effort.\n')['SKILL.md'] };
 };
 const stable = m => { const c = JSON.parse(JSON.stringify(m)); delete c.lastPlan; delete c.createdAt; for (const v of Object.values(c.providers)) delete v.installedAt; return JSON.stringify(c); };
 function assertComplete(fx, label) {
@@ -54,7 +54,7 @@ test('an initial bridge killed at every write boundary recovers on the next plan
       const personal = seedBoth(fx);
       const first = B.plan(fx);
       const killed = runApply(fx, first.id, killAt);
-      assert.equal(killed.signal, 'SIGKILL', `${killAt}: process died there (${killed.stderr})`);
+      assert.ok(killedAt(killed, killAt), `${killAt}: process died there (${killed.stderr})`);
       assert.ok(existsSync(join(fx.home, '.selr/bridge/operation.lock')), `${killAt}: a killed run leaves its lock`);
       if (killAt !== 'lock') assert.ok(fx.manifest().pending, `${killAt}: progress record survives`);
       assert.equal(B.verify(fx).healthy, false, `${killAt}: verify reports the unfinished state`);
@@ -103,7 +103,7 @@ test('an interrupted sync and an interrupted removal complete, and an edit made 
         fy.write(fy.skillPath('codex', 'notes', 'ref/b.md'), 'b\n');
         const q = B.plan(fy, { provider: 'codex' });
         const killed = runApply(fy, q.id, killAt);
-        assert.equal(killed.signal, 'SIGKILL', killAt);
+        assert.ok(killedAt(killed, killAt), killAt);
         const again = B.plan(fy, { provider: 'codex' });
         const recovered = runApply(fy, again.id);
         assert.equal(recovered.status, 0, `${killAt}: ${recovered.stderr}`);
@@ -120,7 +120,7 @@ test('an interrupted sync and an interrupted removal complete, and an edit made 
     seedBoth(fz);
     const p = B.plan(fz);
     const killed = runApply(fz, p.id, 'codex:skill:notes');
-    assert.equal(killed.signal, 'SIGKILL');
+    assert.ok(killedAt(killed, 'codex:skill:notes'));
     fz.write(fz.skillPath('codex', 'notes', 'ref/a.md'), 'My own reference.\n');
     const recovered = runApply(fz, B.plan(fz).id);
     assert.equal(recovered.status, 0, recovered.stderr);
@@ -135,14 +135,14 @@ test('an interrupted sync and an interrupted removal complete, and an edit made 
     seedBoth(fw); B.bridge(fw);
     const p = B.plan(fw, { intent: 'remove', removeProvider: 'claude' });
     const killed = runApply(fw, p.id, 'remove-block:claude');
-    assert.equal(killed.signal, 'SIGKILL');
+    assert.ok(killedAt(killed, 'remove-block:claude'));
     assert.ok(fw.manifest().providers.claude, 'the receipt still names Claude until removal completes');
     const again = B.plan(fw, { intent: 'remove', removeProvider: 'claude' });
     const recovered = runApply(fw, again.id);
     assert.equal(recovered.status, 0, recovered.stderr);
     assert.ok(recovered.result.recovery.actions.some(a => /already removed/.test(a)), 'the finished block removal is named');
     assert.equal(fw.manifest().providers.claude, undefined);
-    assert.equal(fw.readText(fw.instructions('claude')), 'Always call me Sam.\n');
+    assert.equal(fw.readText(fw.instructions('claude')), 'Always call me Sam.\n', 'the moved text is restored');
     assert.ok(fw.manifest().providers.codex.ready);
     assertComplete(fw, 'removal');
   } finally { fw.cleanup(); }
@@ -201,7 +201,7 @@ test('resolution, translation, project pointer and uninstall are killed at every
         sc.seed(fx);
         const p = sc.plan(fx);
         const killed = runApply(fx, p.id, killAt);
-        assert.equal(killed.signal, 'SIGKILL', `${sc.label} @ ${killAt}: ${killed.stderr}`);
+        assert.ok(killedAt(killed, killAt), `${sc.label} @ ${killAt}: ${killed.stderr}`);
         const again = sc.replan(fx);
         const recovered = runApply(fx, again.id);
         assert.equal(recovered.status, 0, `${sc.label} @ ${killAt}: ${recovered.stderr}`);

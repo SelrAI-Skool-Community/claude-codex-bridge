@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { B, fixtureHome, skill } from './helpers.mjs';
 import { hash, safePath, save } from '../scripts/bridge-files.mjs';
@@ -94,3 +94,27 @@ test('a stale plan is refused once its sources change; deletion never reaches ou
 });
 import * as fsNs from 'node:fs';
 function fsModule() { return fsNs; }
+
+test('a junction (Windows) or directory link (elsewhere) in a provider skill root is refused and left unchanged', () => {
+  const fx = fixtureHome('junction');
+  try {
+    fx.seed('claude', { instructions: 'Hi.\n', skills: { notes: skill('notes') } });
+    fx.seed('codex', { instructions: 'Hi.\n' });
+    const elsewhere = join(fx.root, 'elsewhere'); mkdirSync(elsewhere);
+    mkdirSync(join(fx.home, '.agents'), { recursive: true });
+    symlinkSync(elsewhere, join(fx.home, '.agents/skills'), process.platform === 'win32' ? 'junction' : 'dir');
+    const p = B.plan(fx);
+    assert.throws(() => B.apply(fx, p.id), /Linked path left unchanged/);
+    assert.equal(readdirSync(elsewhere).length, 0, 'nothing written through the link');
+    // A linked skill inside the root is classified, never followed.
+    rmSync(join(fx.home, '.agents/skills'));
+    mkdirSync(join(fx.home, '.agents/skills'));
+    const target = join(fx.root, 'real-skill'); mkdirSync(target); writeFileSync(join(target, 'SKILL.md'), skill('linked')['SKILL.md']);
+    symlinkSync(target, join(fx.home, '.agents/skills/linked'), process.platform === 'win32' ? 'junction' : 'dir');
+    const q = B.plan(fx);
+    assert.equal(q.items.find(i => i.id === 'skill:codex/linked').disposition, 'codex-only');
+    B.apply(fx, q.id);
+    assert.equal(existsSync(fx.skillPath('claude', 'linked')), false);
+    assert.deepEqual(readdirSync(target), ['SKILL.md']);
+  } finally { fx.cleanup(); }
+});

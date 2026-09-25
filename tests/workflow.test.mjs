@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, symlinkSync, mkdirSync, rmSync, statSync, chmodSync, cpSync, appendFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { B, fixtureHome, item, ops, skill } from './helpers.mjs';
 
 test('Claude-only to both: the portable core is seeded from Claude and Codex joins later without touching Claude', () => {
@@ -15,7 +15,8 @@ test('Claude-only to both: the portable core is seeded from Claude and Codex joi
     const result = B.apply(fx, first.id);
     assert.equal(result.applied, true);
     assert.equal(fx.readText(fx.corePath('instructions.md')), 'Always call me Sam.\n');
-    assert.ok(fx.readText(fx.instructions('claude')).startsWith('Always call me Sam.\n'), 'unrelated Claude instructions preserved');
+    assert.ok(!fx.readText(fx.instructions('claude')).includes('Always call me Sam.'), 'the seeded text moved: Claude reads one copy, through the block');
+    assert.ok(fx.readText(fx.instructions('claude')).startsWith('<!-- selr-bridge:begin -->'));
     assert.equal(existsSync(fx.config('codex')), false, 'Codex is never created by a Claude-only bridge');
     assert.ok(B.verify(fx).healthy, B.verify(fx).summary);
     // Codex arrives with its own instructions.
@@ -23,7 +24,7 @@ test('Claude-only to both: the portable core is seeded from Claude and Codex joi
     const second = B.bridge(fx, { provider: 'codex' });
     assert.ok(second.plan.items.every(i => i.id !== 'instructions:portable'), 'the portable instructions are seeded once');
     assert.ok(fx.readText(fx.instructions('codex')).startsWith('Codex personal.\n'));
-    assert.ok(fx.readText(fx.instructions('codex')).includes('overlays/codex.md') && !fx.readText(fx.instructions('codex')).includes('overlays/claude.md'), 'Codex reads only its own overlay');
+    assert.ok(fx.readText(fx.instructions('codex')).includes(join('overlays', 'codex.md')) && !fx.readText(fx.instructions('codex')).includes(join('overlays', 'claude.md')), 'Codex reads only its own overlay');
     assert.equal(fx.readText(fx.skillPath('codex', 'notes')), fx.readText(fx.skillPath('claude', 'notes')), 'the shared skill is now in Codex');
     const m = fx.manifest();
     assert.ok(m.providers.claude.ready && m.providers.codex.ready);
@@ -39,14 +40,14 @@ test('Codex-only to both mirrors the Claude-only path, using AGENTS.override.md 
     const { plan: p } = B.bridge(fx, { provider: 'codex' });
     assert.equal(item(p, 'instructions:portable').source, join(fx.config('codex'), 'AGENTS.override.md'));
     assert.equal(fx.readText(join(fx.config('codex'), 'AGENTS.md')), 'Inactive.\n', 'the inactive file is untouched');
-    assert.ok(fx.readText(join(fx.config('codex'), 'AGENTS.override.md')).startsWith('Active override.\n'));
-    assert.ok(fx.readText(join(fx.config('codex'), 'AGENTS.override.md')).includes('<!-- selr-bridge:begin -->'));
+    assert.ok(fx.readText(join(fx.config('codex'), 'AGENTS.override.md')).startsWith('<!-- selr-bridge:begin -->'), 'the active override keeps only the block; its text moved into the portable instructions');
+    assert.equal(fx.readText(fx.corePath('instructions.md')), 'Active override.\n');
     assert.equal(fx.readText(join(fx.config('codex'), 'config.toml')), '# personal\n');
     assert.equal(item(p, 'settings:codex').disposition, 'codex-only');
     fx.seed('claude', {});
     B.bridge(fx, { provider: 'claude' });
     assert.equal(fx.readText(fx.skillPath('claude', 'drafts')), fx.readText(fx.skillPath('codex', 'drafts')));
-    assert.ok(fx.readText(fx.instructions('claude')).includes('overlays/claude.md'));
+    assert.ok(fx.readText(fx.instructions('claude')).includes(join('overlays', 'claude.md')));
     assert.ok(B.verify(fx).healthy);
   } finally { fx.cleanup(); }
 });
@@ -166,7 +167,7 @@ test('divergent edits, edit-versus-delete and independent core edits are conflic
     p = B.plan(fx, { resolve: { notes: 'codex' } });
     const result = B.apply(fx, p.id);
     assert.equal(result.candidates.length, 2);
-    assert.ok(result.candidates.some(c => c.includes('/claude-') && readFileSync(join(c, 'SKILL.md'), 'utf8').includes('claude')));
+    assert.ok(result.candidates.some(c => c.includes(`${sep}claude-`) && readFileSync(join(c, 'SKILL.md'), 'utf8').includes('claude')));
     assert.equal(fx.readText(fx.skillPath('claude', 'notes')), skill('notes', 'codex\n')['SKILL.md']);
     assert.ok(B.verify(fx).checks.some(c => c.name === 'candidates:notes' && c.state === 'unknown'), 'preserved candidates are reported until deleted');
     // Edit versus delete.
@@ -351,5 +352,66 @@ test('a kit update refreshes unchanged bridge-owned core files and keeps customi
     assert.equal(fx.manifest().kit.version, 'file:9.9.9');
     assert.ok(fx.readText(fx.instructions('claude')).includes(`Kit home: ${newer}`));
     assert.ok(B.verify(fx, { kit: newer }).checks.find(c => c.name === 'core:contract').state === 'confirmed');
+  } finally { fx.cleanup(); }
+});
+
+test('seeded instructions move into the portable core, other text stays app-specific, and removal puts the current portable text back', () => {
+  const fx = fixtureHome('move');
+  try {
+    fx.seed('claude', { instructions: 'Always call me Sam.\n' });
+    fx.seed('codex', { instructions: 'Codex only: use the sandbox.\n' });
+    let p = B.plan(fx, { instructionsFrom: 'claude' });
+    assert.ok(p.operations.some(o => o.op === 'move-instructions' && o.provider === 'claude'));
+    assert.ok(!p.operations.some(o => o.op === 'move-instructions' && o.provider === 'codex'), 'different text is never moved');
+    assert.equal(item(p, 'instructions:codex').disposition, 'codex-only');
+    B.apply(fx, p.id);
+    assert.ok(fx.readText(fx.instructions('codex')).startsWith('Codex only: use the sandbox.\n'));
+    assert.ok(B.verify(fx).healthy, B.verify(fx).summary);
+    assert.equal(B.plan(fx).noop, true);
+    fx.write(fx.corePath('instructions.md'), 'Always call me Samantha.\n');
+    B.remove(fx, 'claude');
+    assert.equal(fx.readText(fx.instructions('claude')), 'Always call me Samantha.\n', 'the current portable text comes back, not a stale copy');
+    assert.equal(fx.readText(fx.instructions('codex')).includes('selr-bridge:begin'), true);
+    // Opting out copies instead.
+    const fy = fixtureHome('keep');
+    try {
+      fy.seed('claude', { instructions: 'Keep me here.\n' });
+      B.bridge(fy, { keepProviderInstructions: true });
+      assert.ok(fy.readText(fy.instructions('claude')).startsWith('Keep me here.\n'));
+    } finally { fy.cleanup(); }
+  } finally { fx.cleanup(); }
+});
+
+test('Codex skills in its own skills folder are moved into the shared folder when shared, and identical duplicates are retired', () => {
+  const fx = fixtureHome('legacy-root');
+  try {
+    fx.seed('claude', { instructions: 'Hi.\n', skills: { both: skill('both') } });
+    fx.seed('codex', { instructions: 'Hi.\n', files: {
+      'skills/legacy-only/SKILL.md': skill('legacy-only')['SKILL.md'], 'skills/legacy-only/ref.md': 'r\n',
+      'skills/both/SKILL.md': skill('both')['SKILL.md'],
+      'skills/dup/SKILL.md': skill('dup')['SKILL.md'],
+      'skills/dupdiff/SKILL.md': skill('dupdiff', 'old\n')['SKILL.md'],
+      'skills/codexy/SKILL.md': skill('codexy', 'Set model_reasoning_effort high.\n')['SKILL.md'],
+    } });
+    fx.write(fx.skillPath('codex', 'dup'), skill('dup')['SKILL.md']);
+    fx.write(fx.skillPath('codex', 'dupdiff'), skill('dupdiff', 'new\n')['SKILL.md']);
+    const legacy = name => join(fx.config('codex'), 'skills', name);
+    const p = B.plan(fx);
+    assert.ok(p.operations.some(o => o.op === 'relocate-skill' && o.name === 'legacy-only'));
+    assert.ok(p.operations.some(o => o.op === 'relocate-skill' && o.name === 'both'), 'an equal twin in the old folder is moved, then adopted');
+    assert.ok(p.operations.some(o => o.op === 'remove-legacy-duplicate' && o.name === 'dup'));
+    assert.equal(item(p, 'skill:codex/dupdiff@legacy').disposition, 'unsupported');
+    assert.equal(item(p, 'skill:codex/codexy').disposition, 'codex-only');
+    assert.equal(item(p, 'skill:codex/codexy').source, legacy('codexy'), 'an unmoved skill is reported where it really is');
+    assert.equal(item(p, 'skill:both').collision, 'equal');
+    B.apply(fx, p.id);
+    assert.equal(existsSync(legacy('legacy-only')), false); assert.equal(fx.readText(fx.skillPath('codex', 'legacy-only', 'ref.md')), 'r\n');
+    assert.equal(fx.readText(fx.skillPath('claude', 'legacy-only')), skill('legacy-only')['SKILL.md'], 'the Codex skill reached Claude');
+    assert.equal(existsSync(legacy('both')), false); assert.ok(fx.manifest().providers.codex.skills.both);
+    assert.equal(existsSync(legacy('dup')), false); assert.ok(existsSync(fx.skillPath('codex', 'dup')));
+    assert.ok(existsSync(legacy('dupdiff')) && existsSync(legacy('codexy')), 'different duplicates and provider-specific skills stay');
+    assert.ok(B.verify(fx).healthy, B.verify(fx).summary);
+    const again = B.plan(fx);
+    assert.ok(!again.operations.some(o => ['relocate-skill', 'remove-legacy-duplicate'].includes(o.op)));
   } finally { fx.cleanup(); }
 });

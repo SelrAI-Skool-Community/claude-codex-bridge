@@ -123,7 +123,7 @@ export function classify(inv, { only = null, skip = [], instructionsFrom = null,
   // A copy consisting only of files a stopped run recorded before writing is
   // the bridge's own unfinished work: it is neither a candidate nor a twin.
   const pendingFiles = inv.manifest?.pending?.files || {};
-  const stagedOnly = skill => Object.keys(skill.files).length > 0 && Object.entries(skill.files).every(([file, h]) => pendingFiles[join(skill.dir, file)] === h);
+  const stagedOnly = skill => !skill.relocatedFrom && Object.keys(skill.files).length > 0 && Object.entries(skill.files).every(([file, h]) => pendingFiles[join(skill.dir, file)] === h);
   const reconciled = name => Boolean(inv.manifest?.core?.skills?.[name]?.baseline);
   const item = (kind, name, disposition, fields) => items.push({ id: `${kind}:${name}`, kind, name, disposition, collision: 'none', userAction: null, ...fields });
   // Instructions: each provider's own file is user-owned and preserved; the
@@ -140,9 +140,14 @@ export function classify(inv, { only = null, skip = [], instructionsFrom = null,
     } else if (instructionsFrom && present[instructionsFrom]) item('instructions', 'portable', 'shared', { source: inv.providers[instructionsFrom].instructions.path, destination: inv.core.instructions.path, reason: `You chose your ${instructionsFrom} global instructions as the portable seed.` });
     else item('instructions', 'portable', 'shared', { source: nonEmpty.map(([p]) => inv.providers[p].instructions.path).join(' | '), destination: inv.core.instructions.path, collision: 'conflict', userAction: 'Your Claude and Codex global instructions differ. Choose which one seeds the portable instructions with --instructions-from claude|codex|none.', reason: 'Both providers have global instructions and they differ; the bridge never merges them silently.' });
   }
+  const seeding = items.find(i => i.kind === 'instructions' && i.id === 'instructions:portable');
   for (const provider of PROVIDERS) {
     if (!present[provider]) continue;
     const found = inv.providers[provider];
+    const ownBody = bodies[provider];
+    const portableBody = inv.core.instructions.exists ? read(inv.core.instructions.path).trim() : null;
+    const seededFromHere = (seeding && seeding.collision !== 'conflict' && (seeding.source === found.instructions.path || (seeding.source === inv.providers[other(provider)]?.instructions.path && ownBody === bodies[other(provider)]))) || (seeding?.recovered && ownBody === portableBody);
+    if (ownBody && !seededFromHere) item('instructions', provider, `${provider}-only`, { source: found.instructions.path, destination: null, reason: `The rest of ${found.instructions.path} is read by ${provider} only. Move lines that should apply in both apps into ${inv.core.instructions.path}.` });
     if (found.instructions.ambiguous) item('instruction-block', provider, 'unsupported', { source: found.instructions.path, destination: found.instructions.path, collision: 'ambiguous-markers', userAction: `Repair the bridge markers in ${found.instructions.path}: there must be one begin and one end marker, or none.`, reason: 'The bridge instruction markers in this file are ambiguous, so the file is left unchanged.' });
     else item('instruction-block', provider, `${provider}-only`, { source: 'bridge', destination: found.instructions.path, reason: `A small managed block in this file points ${provider} at the portable instructions, its own overlay and the shared knowledge contract. Everything else in the file stays yours.` });
     for (const skill of found.skills) {
@@ -152,10 +157,11 @@ export function classify(inv, { only = null, skip = [], instructionsFrom = null,
       if (name === 'claude-codex-bridge') continue; // the kit's own skill is planned from the kit
       if (!validName(name)) { item('skill', `${provider}/${name}`, 'unsupported', { source: skill.dir, destination: null, reason: 'This skill folder name cannot be represented safely; it is left where it is.' }); continue; }
       if (skill.linked || skill.links.length) { item('skill', `${provider}/${name}`, `${provider}-only`, { source: skill.dir, destination: null, reason: 'This skill contains a link, so it stays where it is; the bridge copies ordinary files only.' }); continue; }
+      if (skill.legacyDuplicate) { const same = skill.legacyDuplicate === 'identical'; item('skill', `${provider}/${name}@legacy`, same ? `${provider}-only` : 'unsupported', { source: skill.dir, destination: same ? null : null, collision: same ? 'duplicate' : 'duplicate-different', userAction: same ? null : `Codex has two different copies of "${name}": ${skill.dir} and ${join(found.skillRoot, name)}. Keep one, then plan again.`, reason: same ? `Codex already loads this skill twice: an identical copy is in ${found.skillRoot}. The copy in ${skill.root} is removed so Codex sees it once.` : 'Two different copies with one name confuse Codex; the bridge leaves both until you choose.', removeLegacy: same }); continue; }
       if (!skill.managedRoot) { item('skill', `${provider}/${name}`, `${provider}-only`, { source: skill.dir, destination: null, reason: `Found in ${provider}'s secondary skill folder ${skill.root}. The bridge manages ${found.skillRoot}; move it there to share it.` }); continue; }
       if (skip.includes(name)) { item('skill', `${provider}/${name}`, `${provider}-only`, { source: skill.dir, destination: null, reason: 'You asked to keep this skill provider-specific.' }); continue; }
       if (only && !only.includes(name)) { item('skill', `${provider}/${name}`, `${provider}-only`, { source: skill.dir, destination: null, reason: 'Not in the selection you asked to share.' }); continue; }
-      let blobs; try { blobs = skillBlobs(skill.dir); } catch { item('skill', `${provider}/${name}`, 'unsupported', { source: skill.dir, destination: null, reason: 'This skill could not be read completely, so it is not shared.' }); continue; }
+      let blobs; try { blobs = skillBlobs(skill.relocatedFrom || skill.dir); } catch { item('skill', `${provider}/${name}`, 'unsupported', { source: skill.dir, destination: null, reason: 'This skill could not be read completely, so it is not shared.' }); continue; }
       const scrub = scrubFiles(blobs);
       if (scrub.hits.length) { item('skill', `${provider}/${name}`, 'unsupported', { source: skill.dir, destination: null, userAction: `Remove the secret from ${scrub.hits.map(h => `${h.path}:${h.line} (${h.ruleId})`).join(', ')} before sharing.`, reason: 'A secret-shaped value was found inside this skill. Nothing containing a secret is copied.' }); continue; }
       const marks = providerAssumptions(blobs);
@@ -214,7 +220,7 @@ function coreSourceFiles(kit) {
   return { memory: join(kit, 'scripts/bridge-memory.mjs'), contract: join(kit, 'core/knowledge-contract.md'), defaultInstructions: join(kit, 'core/instructions-default.md'), overlay: p => join(kit, 'core/overlays', `${p}.md`) };
 }
 export function plan(options = {}) {
-  const { intent = 'bridge', provider: current = null, host = 'cli', removeProvider = null } = options;
+  const { intent = 'bridge', provider: current = null, host = 'cli', removeProvider = null, skip = [] } = options;
   const inv = inspect(options);
   const manifest = loadManifest(inv.home);
   inv.manifest = manifest;
@@ -240,8 +246,28 @@ export function plan(options = {}) {
     if (intent === 'uninstall') { ops.push({ op: 'uninstall-core' }); summary.push('Remove the bridge-owned files in the portable core that are unchanged. Your portable instructions, shared knowledge, handoffs and any customised file stay.'); }
   } else {
     if (!present.length) throw Error('Neither Claude Code nor Codex configuration was found on this computer. Install and open one of them first; the bridge does not install either product.');
+    // Codex also loads skills from its own skills folder. A skill there is moved
+    // into the shared skills folder when it is shared, so Codex never loads two
+    // copies; an identical copy already in the shared folder retires the old one.
+    const relocations = {};
+    if (inv.providers.codex.present) {
+      const codex = inv.providers.codex;
+      const pendingFiles = manifest?.pending?.files || {};
+      const staged = sk => Object.keys(sk.files).length > 0 && Object.entries(sk.files).every(([f, h]) => pendingFiles[join(sk.dir, f)] === h);
+      const primary = name => codex.skills.find(sk => sk.managedRoot && sk.name === name);
+      const next = [];
+      for (const sk of codex.skills) {
+        if (sk.managedRoot) { const legacy = codex.skills.find(x => !x.managedRoot && x.name === sk.name); if (legacy && staged(sk)) continue; next.push(sk); continue; }
+        if (sk.linked || sk.links.length) { next.push(sk); continue; }
+        const twin = primary(sk.name);
+        if (twin && !staged(twin)) { next.push({ ...sk, legacyDuplicate: dirHash(twin.files) === dirHash(sk.files) ? 'identical' : 'different' }); continue; }
+        relocations[sk.name] = { from: sk.dir, to: join(codex.skillRoot, sk.name), hash: dirHash(sk.files) };
+        next.push({ ...sk, relocatedFrom: sk.dir, dir: join(codex.skillRoot, sk.name), root: codex.skillRoot, managedRoot: true });
+      }
+      codex.skills = next;
+    }
     items = classify(inv, options);
-    const seed = items.find(i => i.kind === 'instructions');
+    const seed = items.find(i => i.id === 'instructions:portable');
     // Core files the bridge owns: written when absent or unchanged; kept when customised.
     const coreFile = (key, path, source, checkpoint) => {
       const body = read(source); const committed = manifest?.core?.[key]?.hash ?? manifest?.core?.[`${key}Hash`];
@@ -264,6 +290,16 @@ export function plan(options = {}) {
       else {
         if (sourceKind === 'provider') pre(`${source}#user-body`, hash(body));
         ops.push({ op: 'seed-instructions', path: p.instructions, from, source, sourceKind, hash: hash(body), checkpoint: 'core:instructions' });
+        // The seeded text moves: both apps then read one copy, so an edit in one
+        // place can never contradict a stale copy in the other. Removing the
+        // bridge puts the current portable text back.
+        if (sourceKind !== 'kit' && !options.keepProviderInstructions) for (const x of present) {
+          const own = inv.providers[x].instructions;
+          if (own.ambiguous || discoverBody(own.path) !== body) continue;
+          pre(`${own.path}#user-body`, hash(body));
+          ops.push({ op: 'move-instructions', provider: x, path: own.path, hash: hash(body) });
+          items.push({ id: `move-instructions:${x}`, kind: 'instructions', name: x, disposition: 'shared', source: own.path, destination: p.instructions, collision: 'none', userAction: null, reason: `Your ${x} global instructions move into the portable instructions so both apps read one copy. ${own.path} keeps only the bridge block; removing the bridge puts the text back.` });
+        }
       }
     }
     if (seed?.collision === 'conflict' && !conflicts.includes(seed)) conflicts.push(seed);
@@ -356,6 +392,15 @@ export function plan(options = {}) {
       }
       items.push({ id: `sync:${name}`, kind: 'sync', name, disposition: 'shared', source: fromDir, destination: coreDir, collision: choice ? 'resolved' : 'none', userAction: null, reason: choice ? `You chose the ${from} copy. Every other candidate is preserved under ${join(p.conflicts, name)}.` : result.reason, decision, from });
     }
+    for (const it of items.filter(i => i.removeLegacy && !skip.includes(i.name.split('/')[1].replace(/@legacy$/, '')))) {
+      pre(it.source, skillFilesHash(it.source));
+      ops.unshift({ op: 'remove-legacy-duplicate', name: it.name.split('/')[1].replace(/@legacy$/, ''), dir: it.source });
+    }
+    for (const [name, r] of Object.entries(relocations)) {
+      const used = ops.some(o => o.name === name && (o.sourceDir === r.to || o.dir === r.to || (o.adopt || []).includes('codex')));
+      if (used) { pre(r.from, r.hash); ops.unshift({ op: 'relocate-skill', name, from: r.from, to: r.to, hash: r.hash }); items.push({ id: `relocate:${name}`, kind: 'relocate', name, disposition: 'codex-only', source: r.from, destination: r.to, collision: 'none', userAction: null, reason: `Moved from Codex's own skills folder into ${dirname(r.to)}, which Codex also reads, so the bridge can manage one copy.` }); }
+      else for (const it of items) if (typeof it.source === 'string' && it.source.includes(r.to)) it.source = it.source.replace(r.to, r.from);
+    }
     for (const it of items.filter(i => i.kind === 'project' && i.disposition === 'translated')) {
       const rec = manifest?.projects?.[it.name];
       if (it.already && rec?.hash === hash(PROJECT_POINTER)) continue;
@@ -434,7 +479,13 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
       if (actual !== expected && !(interrupted?.planId === planId)) throw Error(`The plan is stale: ${path} changed after it was made. Run plan again and apply the new id.`);
     }
     manifest.kit = { home: record.kit, version: record.kitVersion };
-    const skillReceipt = provider => (manifest.providers[provider] ||= { ready: false, host: record.host, os: platform(), config: null, instructions: null, skillRoot: null, installedAt: new Date().toISOString(), skills: {} });
+    const skillReceipt = provider => {
+      if (!manifest.providers[provider]) {
+        const adapter = record.operations.find(o => o.op === 'adapter' && o.provider === provider);
+        manifest.providers[provider] = { ready: false, host: adapter?.host || record.host, os: platform(), config: adapter?.config || null, instructions: adapter?.instructions || null, skillRoot: adapter?.skillRoot || null, installedAt: new Date().toISOString(), skills: {} };
+      }
+      return manifest.providers[provider];
+    };
     const coreSkillRoot = p.skills;
     const coreReceipt = () => { manifest.core.skills ||= {}; return { skills: manifest.core.skills }; };
     const providerSkillRoot = provider => manifest.providers[provider]?.skillRoot || record.operations.find(o => o.op === 'adapter' && o.provider === provider)?.skillRoot;
@@ -508,6 +559,47 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
           save(op.path, body); checkpoint(op.checkpoint);
           manifest.core.instructions = { path: op.path, seededFrom: op.from, seededAt: new Date().toISOString() };
           commit([op.path]); persist();
+          break;
+        }
+        case 'relocate-skill': {
+          safePath(op.to); safePath(op.from);
+          if (!existsSync(op.from)) { recovery.actions.push(`${op.name} was already moved by a stopped run.`); break; }
+          if (dirHash(readSkill(op.from).files) !== op.hash) throw Error(`The plan is stale: ${op.from} changed after it was made. Run plan again and apply the new id.`);
+          const files = tree(op.from).map(f => [join(op.to, f), readFileSync(join(op.from, f)), lstatSync(join(op.from, f)).mode & 0o777]);
+          for (const [target, body] of files) if (existsSync(target) && current(target) !== hash(body) && current(target) !== pending[target]) throw Error(`${target} already exists with other content; ${op.name} was left in place. Run plan again.`);
+          stage(files.map(([t, b]) => [t, b]));
+          for (const [target, body, mode] of files) if (current(target) !== hash(body)) save(target, body, mode);
+          checkpoint(`relocate-copy:${op.name}`);
+          commit(files.map(([t]) => t)); persist();
+          const old = tree(op.from).map(f => join(op.from, f));
+          stageRemovals(old);
+          rmSync(op.from, { recursive: true, force: true });
+          checkpoint(`relocate:${op.name}`);
+          commitRemovals(old); persist();
+          break;
+        }
+        case 'remove-legacy-duplicate': {
+          safePath(op.dir);
+          if (!existsSync(op.dir)) break;
+          const old = tree(op.dir).map(f => join(op.dir, f));
+          stageRemovals(old);
+          rmSync(op.dir, { recursive: true, force: true });
+          checkpoint(`legacy-duplicate:${op.name}`);
+          commitRemovals(old); persist(); results.removed.push(op.dir);
+          break;
+        }
+        case 'move-instructions': {
+          const rec = skillReceipt(op.provider);
+          const userBody = discoverBody(op.path);
+          if (!userBody.trim()) { rec.movedInstructions ||= { hash: op.hash, from: op.path, at: new Date().toISOString() }; persist(); break; }
+          if (hash(userBody) !== op.hash) { kept.push(op.path); break; }
+          rec.movedInstructions = { hash: op.hash, from: op.path, at: new Date().toISOString() }; persist();
+          const { blocks } = managedBlocks(read(op.path));
+          const next = blocks.length ? blocks[0] + '\n' : '';
+          pending[op.path] = hash(next); persist();
+          save(op.path, next);
+          checkpoint(`move-instructions:${op.provider}`);
+          delete pending[op.path]; persist();
           break;
         }
         case 'project-pointer': {
@@ -617,7 +709,11 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
           const global = read(rec.instructions);
           const { blocks, ambiguous } = managedBlocks(global);
           const markers = (global.match(/<!-- selr-bridge:(?:begin|end) -->/g) || []).length;
-          if (!blocks.length && !markers) { recovery.actions.push(`The bridge block in ${rec.instructions} was already removed; finishing that removal.`); break; }
+          if (!blocks.length && !markers) {
+            recovery.actions.push(`The bridge block in ${rec.instructions} was already removed; finishing that removal.`);
+            if (rec.movedInstructions && !global.trim() && read(p.instructions).trim()) save(rec.instructions, read(p.instructions));
+            break;
+          }
           const stagedBlock = pending[`${rec.instructions}#selr-bridge-block`];
           if (ambiguous || (hash(blocks[0]) !== rec.adapterHash && hash(blocks[0]) !== stagedBlock)) throw Error(`The bridge block in ${rec.instructions} is ambiguous or customised; left unchanged.`);
           // Exactly the text the bridge inserted comes out; the user's bytes around it stay as they were.
@@ -625,6 +721,10 @@ export function apply({ home = homedir(), planId, checkpoint = () => {}, nativeI
           let stripped;
           if (inserted) stripped = global.replace(inserted, () => '');
           else { const at = global.indexOf(blocks[0]); stripped = global.slice(0, at).replace(/\n+$/, '\n') + global.slice(at + blocks[0].length).replace(/^\n+/, ''); }
+          if (rec.movedInstructions && !stripped.trim()) {
+            const portable = read(p.instructions);
+            if (portable.trim()) { stripped = portable; recovery.actions.push(`Put the portable instructions back into ${rec.instructions}, where they came from.`); }
+          }
           save(rec.instructions, stripped === '\n' ? '' : stripped);
           delete pending[`${rec.instructions}#selr-bridge-block`];
           checkpoint(`remove-block:${op.provider}`);
@@ -747,7 +847,7 @@ export function verify(options = {}) {
     if (!found.present) check(`${provider}:config`, 'unknown', `${provider}'s configuration folder ${found.config} was not found; its state cannot be read.`);
   }
   for (const [name, baseline] of Object.entries(manifest.core.skills || {})) {
-    const sides = Object.fromEntries(PROVIDERS.filter(x => manifest.providers[x]).map(x => [x, existsSync(join(manifest.providers[x].skillRoot, name)) ? readSkill(join(manifest.providers[x].skillRoot, name)).files : null]));
+    const sides = Object.fromEntries(PROVIDERS.filter(x => manifest.providers[x]?.skillRoot).map(x => [x, existsSync(join(manifest.providers[x].skillRoot, name)) ? readSkill(join(manifest.providers[x].skillRoot, name)).files : null]));
     const result = reconcileSkill({ name, baseline: baseline.baseline || baseline.files, core: existsSync(join(p.skills, name)) ? readSkill(join(p.skills, name)).files : null, claude: sides.claude ?? null, codex: sides.codex ?? null, present: { claude: 'claude' in sides, codex: 'codex' in sides } });
     if (result.decision === 'conflict') check(`shared:${name}`, 'conflicted', result.reason);
     else if (result.decision !== 'unchanged') check(`shared:${name}`, 'blocked', `${name}: ${result.reason} Run sync to reconcile.`);
@@ -785,7 +885,7 @@ export function status(options = {}) {
   if (!manifest) return { ...report, summary: 'The bridge is not installed on this computer.' };
   for (const [provider, rec] of Object.entries(manifest.providers)) report.providers[provider] = { ready: rec.ready, instructions: rec.instructions, skillRoot: rec.skillRoot, overlay: join(p.overlays, `${provider}.md`), present: inv.providers[provider].present };
   for (const [name, baseline] of Object.entries(manifest.core.skills || {})) {
-    const sides = Object.fromEntries(PROVIDERS.filter(x => manifest.providers[x]).map(x => [x, existsSync(join(manifest.providers[x].skillRoot, name)) ? readSkill(join(manifest.providers[x].skillRoot, name)).files : null]));
+    const sides = Object.fromEntries(PROVIDERS.filter(x => manifest.providers[x]?.skillRoot).map(x => [x, existsSync(join(manifest.providers[x].skillRoot, name)) ? readSkill(join(manifest.providers[x].skillRoot, name)).files : null]));
     const r = reconcileSkill({ name, baseline: baseline.baseline || baseline.files, core: existsSync(join(p.skills, name)) ? readSkill(join(p.skills, name)).files : null, claude: sides.claude ?? null, codex: sides.codex ?? null, present: { claude: 'claude' in sides, codex: 'codex' in sides } });
     if (r.decision === 'unchanged') report.shared.push(name);
     else if (r.decision === 'conflict') report.conflicted.push({ name, reason: r.reason, sides: r.sides });
@@ -793,7 +893,7 @@ export function status(options = {}) {
   }
   inv.manifest = manifest;
   for (const it of classify(inv)) {
-    if (it.kind === 'instruction-block' || it.kind === 'instructions' || it.kind === 'native-import') continue;
+    if (it.kind === 'instruction-block' || it.id === 'instructions:portable' || it.id.startsWith('move-instructions:') || it.kind === 'native-import' || it.kind === 'relocate') continue;
     if (it.disposition === 'unsupported') report.unsupported.push({ name: it.name, kind: it.kind, reason: it.reason });
     else if (it.disposition.endsWith('-only')) report.providerSpecific.push({ name: it.name, kind: it.kind, provider: it.disposition.replace('-only', ''), reason: it.reason });
     else if (it.collision === 'conflict') report.conflicted.push({ name: it.name, reason: it.reason });

@@ -44,3 +44,8 @@ export const B = {
 };
 export const item = (p, id) => p.items.find(i => i.id === id);
 export const ops = p => p.operations.map(o => o.op);
+
+// A process killed at a checkpoint: POSIX reports SIGKILL; Windows reports no
+// signal, a non-zero status, no result on stdout, and the kill boundary as the
+// last checkpoint written.
+export const killedAt = (run, boundary) => run.signal === 'SIGKILL' || (process.platform === 'win32' && run.status !== 0 && !run.stdout.trim() && run.boundaries?.at(-1) === boundary);

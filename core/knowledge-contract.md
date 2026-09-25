@@ -1,4 +1,4 @@
-# Shared knowledge and handoffs
+# Shared knowledge, instructions and handoffs
 
 Both Claude Code and Codex read this contract on every task. The bridge owns
 this file and rewrites it on update; durable changes belong in the portable
@@ -27,6 +27,13 @@ revision (exit 2) or busy store (exit 1) prints the next step; follow it.
 
 Save only knowledge the user intends to share. Credentials, provider-private
 automatic memory and whole conversations stay out of the store.
+
+## Change standing instructions
+
+When the user changes how you should work in general, edit
+`<bridge core>/instructions.md`: both apps read it. When they say the change
+is for this app only, edit your overlay in `<bridge core>/overlays/`. Show the
+user the line you changed and the file it is in.
 
 ## Create a handoff
 
