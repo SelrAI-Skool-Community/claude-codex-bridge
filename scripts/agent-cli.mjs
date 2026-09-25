@@ -11,7 +11,7 @@
 // the real home folder.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, platform, tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -47,6 +47,20 @@ function sandboxProfile() {
 }
 let profile = null;
 
+// Codex on Windows finds ~/.agents from the Windows user profile, not from the
+// USERPROFILE variable a fixture sets (see docs/verification). On a member's
+// computer those are the same folder. On a disposable CI machine only, the
+// real profile's .agents folder is pointed at the fixture's so Codex reads the
+// fixture's shared skills exactly as it would read a member's.
+export function pointRealAgentsAt(home, env = process.env) {
+  if (platform() !== 'win32' || env.GITHUB_ACTIONS !== 'true') return false;
+  const real = join(REAL_HOME, '.agents'), target = join(home, '.agents');
+  mkdirSync(target, { recursive: true });
+  try { const st = lstatSync(real); if (st.isSymbolicLink()) rmSync(real); else renameSync(real, `${real}.ci-original`); } catch { /* absent */ }
+  symlinkSync(target, real, 'junction');
+  return true;
+}
+
 // One turn. `session` carries the conversation between turns: pass the object
 // returned by the previous turn to continue it.
 export function runAgent(provider, { home, cwd, prompt, session = null, env = process.env, timeout = 480000 }) {
@@ -64,6 +78,7 @@ export function runAgent(provider, { home, cwd, prompt, session = null, env = pr
     // tokens; copy the current one before every turn so a long run never
     // holds a stale token (and never holds a refresh token at all).
     prepareCodexHome(join(home, '.codex'), env);
+    pointRealAgentsAt(home, env);
     bin = env.CCB_CODEX_BIN || 'codex';
     last = join(mkdtempSync(join(tmpdir(), 'ccb-last-')), 'last.txt');
     args = ['exec', '--json', '--skip-git-repo-check', '--dangerously-bypass-approvals-and-sandbox', '--output-last-message', last, ...(session ? ['resume', id, '-'] : ['-C', cwd, '-'])];

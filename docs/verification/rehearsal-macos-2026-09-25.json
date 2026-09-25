@@ -1,29 +1,29 @@
 {
   "schema": 1,
-  "at": "2026-09-25T03:28:39.731Z",
+  "at": "2026-09-25T03:47:59.094Z",
   "host": "Mac.mymodem",
   "os": "darwin 25.6.0",
-  "sourceRevision": "fb15b63e44d54fe738df389e81fc5c456e48e536",
+  "sourceRevision": "f03304f833db01e02e7555610404293f49b811ff",
   "steps": [
     {
       "label": "inspect",
-      "ms": 356
+      "ms": 446
     },
     {
       "label": "plan",
-      "ms": 3576
+      "ms": 3442
     },
     {
       "label": "plan with a seed choice",
-      "ms": 3597
+      "ms": 3535
     },
     {
       "label": "apply",
-      "ms": 80
+      "ms": 93
     },
     {
       "label": "remove codex",
-      "ms": 14
+      "ms": 13
     },
     {
       "label": "re-add codex",
@@ -31,7 +31,7 @@
     },
     {
       "label": "uninstall",
-      "ms": 37
+      "ms": 39
     }
   ],
   "checks": [
@@ -127,8 +127,8 @@
   },
   "verifyChecks": 20,
   "status": {
-    "shared": 3,
-    "changed": 29,
+    "shared": 32,
+    "changed": 0,
     "conflicted": 3,
     "providerSpecific": 45,
     "unsupported": 7,

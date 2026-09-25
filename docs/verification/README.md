@@ -1,24 +1,30 @@
 # Release evidence
 
-A clean test suite is necessary but not sufficient to ship. Each platform needs
-a real-machine run of the whole journey with the installed Claude Code and
-Codex builds: install, initial bridge in both directions, sync, conflict,
-interrupted recovery, fresh-session verification, provider removal and
-uninstall. `node scripts/release-journey.mjs` produces the record; platform
-override tests do not satisfy this gate.
+A clean test suite is necessary but not sufficient to ship. Each platform
+needs real-machine records from the installed Claude Code and Codex builds.
+The fixture suite (`npm test`) runs on macOS, Linux and Windows in CI.
 
-Each record (`<platform>-<date>.json`) holds the exact provider versions,
-operating system, source revision, fixture state, every command and its
-observed result, and the fresh-session transcripts showing that each provider
-read the shared instructions and knowledge, applied only its own overlay, and
-consumed a handoff snapshot.
-
-| Platform | Record | Status |
+| Record | Produced by | What it proves |
 | --- | --- | --- |
-| macOS | `macos-2026-09-22.json` | see the record's `status` |
-| Windows | none yet | outstanding: the repository stays private until a Windows record with `status: passed` is added |
+| `macos-<date>.json`, `windows-journey.json` | `scripts/release-journey.mjs` | The engine lifecycle end to end: bridge in both directions, sync, conflict, interrupted recovery, fresh sessions reading the core and only their own overlay, removal, re-addition and uninstall. |
+| `acceptance-macos-<date>.json`, `windows-acceptance.json` | `scripts/acceptance.mjs` | The member journey with real agents: one-paste setup Claude-first and Codex-first, unprompted use of shared instructions and skills, knowledge saved and read in both directions, a standing-instruction change, a handoff, an agent-driven sync. |
+| `discovery-macos-<date>.json`, `windows-discovery.json` | `scripts/skill-discovery-probe.mjs` | Which skill folders each app loads (ADR-0006). |
+| `rehearsal-macos-<date>.json` | `scripts/rehearse-real-setup.mjs` | The lifecycle on a copy of a real setup: realistic sizes, no MCP secret in any output, provider files restored, the real home byte-identical afterwards. Counts only. |
+| `desktop-checklist.md` | A person | The desktop apps, which cannot be driven from a script. |
 
-Running the journey needs sign-in for the child sessions: on macOS the Claude
-token is read from the keychain into `CLAUDE_CODE_OAUTH_TOKEN`, and the user's
-`~/.codex/auth.json` is linked into the fixture's `CODEX_HOME` for the duration
-of the run. Nothing in the real home is changed.
+Every record holds the operating system, the exact app versions, the source
+revision, and each command or prompt with the observed result.
+
+## How the runs sign in
+
+Agent runs use a fixture home and never write to the real one (on macOS they
+run inside `sandbox-exec` with the real home read-only). Sign-in is an access
+token only, with no refresh token. Claude's token comes from
+`CLAUDE_CODE_OAUTH_TOKEN` or the macOS keychain. Codex's comes from
+`CCB_CODEX_AUTH` or a copy of the current `~/.codex/auth.json` with the refresh
+token removed, taken again before every turn. The Windows workflow
+(`.github/workflows/windows-release.yml`) reads the same two values from
+repository secrets, which are removed after each run. A Codex access token is
+retired when the real app refreshes its sign-in, so a Windows run has to finish
+before that happens; if Codex turns fail with a refresh-token error, refresh
+the secret and run again.
